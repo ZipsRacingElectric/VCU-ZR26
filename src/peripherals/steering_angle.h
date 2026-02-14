@@ -17,8 +17,8 @@
 
 typedef struct
 {
-	/// @brief The zeroing offset to apply to the sample, should shift the zero position to 2048.
-	uint16_t sampleOffset;
+	/// @brief The sampled value which should read as zero.
+	uint16_t sampleZero;
 	/// @brief The sample correlating to the negative-most position.
 	uint16_t sampleNegative;
 	/// @brief The sample correlating to the positive-most position.

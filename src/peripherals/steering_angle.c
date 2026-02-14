@@ -46,13 +46,13 @@ void callback (void* object, uint16_t sample, uint16_t sampleVdd)
 
 	sas_t* sas = (sas_t*) object;
 
+	// Store the sample without the offset
+	sas->sample = sample;
+
 	// Apply the sample offset and 4096 modulus
-	sample += sas->config->sampleOffset;
+	sample += 2048 - sas->config->sampleZero;
 	if (sample >= 4096)
 		sample -= 4096;
-
-	// Store the sample
-	sas->sample = sample;
 
 	// If the config is invalid, don't check anything else.
 	if (sas->state == ANALOG_SENSOR_CONFIG_INVALID)
