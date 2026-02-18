@@ -30,6 +30,7 @@ CSRC =	$(ALLCSRC)							\
 		src/torque_thread.c					\
 		src/controls/tv_const_bias.c		\
 		src/controls/tv_linear_bias.c		\
+		src/controls/tv_bicycle_model.c		\
 											\
 		src/state_thread.c
 

@@ -7,6 +7,7 @@
 #include "controls/torque_vectoring.h"
 #include "controls/tv_const_bias.h"
 #include "controls/tv_linear_bias.h"
+#include "controls/tv_bicycle_model.h"
 #include "peripherals.h"
 #include "state_thread.h"
 #include "controls/lerp.h"
@@ -80,6 +81,11 @@ static tvAlgorithm_t tvAlgorithms [] =
 		// Single-tire-fire (right)
 		.entrypoint	= &tvConstBias,
 		.config		= &STF_R_CONFIG
+	},
+	{
+		// Bicycle mode
+		.entrypoint = &tvBicycleModel,
+		.config		= &physicalEepromMap->bicycleConfig
 	}
 };
 

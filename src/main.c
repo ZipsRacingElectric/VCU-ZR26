@@ -6,6 +6,8 @@
 // Description: Entrypoint and interrupt handling for the vehicle control unit. See the respective threads for specific
 //   responsibilities of the the VCU.
 
+// TODO(Barach): Hybrid watchdog
+
 // Includes -------------------------------------------------------------------------------------------------------------------
 
 // Includes
@@ -26,7 +28,7 @@ void hardFaultCallback (void)
 	while (true)
 	{
 		palToggleLine (LINE_LED_FAULT);
-		for (uint16_t index = 0; index < 32768; ++index);
+		while (DWT->CYCCNT % 16800000 != 0);
 	}
 }
 

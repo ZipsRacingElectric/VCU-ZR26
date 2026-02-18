@@ -15,6 +15,7 @@
 #include "peripherals/steering_angle.h"
 #include "controls/tv_const_bias.h"
 #include "controls/tv_linear_bias.h"
+#include "controls/tv_bicycle_model.h"
 
 // Constants ------------------------------------------------------------------------------------------------------------------
 
@@ -66,6 +67,8 @@ typedef struct
 
 	bool sasEnabled;					// 0x00F8
 	uint8_t sasAddr;					// 0x00F9
+
+	tvBicycleModelConfig_t bicycleConfig;	// 0x00FC
 } eepromMap_t;
 
 // Functions ------------------------------------------------------------------------------------------------------------------

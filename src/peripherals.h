@@ -14,7 +14,6 @@
 #include "peripherals/adc/analog_linear.h"
 #include "peripherals/adc/stm_adc.h"
 
-#include "peripherals/i2c/am4096.h"
 #include "peripherals/i2c/as5600.h"
 #include "peripherals/i2c/mc24lc32.h"
 
