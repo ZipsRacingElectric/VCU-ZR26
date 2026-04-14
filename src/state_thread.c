@@ -58,14 +58,14 @@ THD_FUNCTION (stateThread, arg)
 			vehicleState = VEHICLE_STATE_FAILED;
 
 		canNodeLock ((canNode_t*) &bms);
-		bool bmsPrechargeComplete = bms.state == CAN_NODE_VALID && bms.prechargeComplete;
+		bool highVoltageEnabled = bms.state == CAN_NODE_VALID && bms.positiveIrClosed;
 		canNodeUnlock ((canNode_t*) &bms);
 
 		// Check vehicle state
 		if (vehicleState == VEHICLE_STATE_LOW_VOLTAGE)
 		{
 			// Transition LV to HV
-			if (bmsPrechargeComplete)
+			if (highVoltageEnabled)
 				vehicleState = VEHICLE_STATE_HIGH_VOLTAGE;
 		}
 		else if (vehicleState == VEHICLE_STATE_HIGH_VOLTAGE)
@@ -79,7 +79,7 @@ THD_FUNCTION (stateThread, arg)
 			}
 
 			// Check TS are still active
-			if (bmsPrechargeComplete)
+			if (highVoltageEnabled)
 			{
 				// Postpone the deadline if TS are active.
 				timeoutHv = chTimeAddX (timeCurrent, HV_INACTIVE_PERIOD);
@@ -93,7 +93,7 @@ THD_FUNCTION (stateThread, arg)
 		else if (vehicleState == VEHICLE_STATE_READY_TO_DRIVE)
 		{
 			// Check TS are still active
-			if (bmsPrechargeComplete)
+			if (highVoltageEnabled)
 			{
 				// Postpone the deadline if TS are active.
 				timeoutHv = chTimeAddX (timeCurrent, HV_INACTIVE_PERIOD);
