@@ -18,20 +18,21 @@
 
 amkInverter_t	amks [AMK_COUNT];
 bms_t			bms;
-ecumasterGps_t	gps;
+ecumasterGps_t	ecumaster;
+sib_t			steeringInputBoard;
 
 #define CAN1_NODE_COUNT (sizeof (can1Nodes) / sizeof (canNode_t*))
 canNode_t* can1Nodes [] =
 {
-	(canNode_t*) &bms, (canNode_t*) &gps,
+	(canNode_t*) &bms, (canNode_t*) &ecumaster,
 	(canNode_t*) &amkRl, (canNode_t*) &amkRr, (canNode_t*) &amkFl, (canNode_t*) &amkFr
 };
 
-// #define CAN2_NODE_COUNT (sizeof (can2Nodes) / sizeof (canNode_t*))
-// canNode_t* can2Nodes [] =
-// {
-// 	(canNode_t*) &amkRl, (canNode_t*) &amkRr, (canNode_t*) &amkFl, (canNode_t*) &amkFr
-// };
+#define CAN2_NODE_COUNT (sizeof (can2Nodes) / sizeof (canNode_t*))
+canNode_t* can2Nodes [] =
+{
+	(canNode_t*) &steeringInputBoard
+};
 
 // Configurations -------------------------------------------------------------------------------------------------------------
 
@@ -46,16 +47,15 @@ static const canThreadConfig_t CAN1_CONFIG =
 	.bridgeDriver	= NULL
 };
 
-// static const canThreadConfig_t CAN2_CONFIG =
-// {
-// 	.name			= "can2_rx",
-// 	.driver			= &CAND2,
-// 	.period			= TIME_MS2I (10),
-// 	.nodes			= can2Nodes,
-// 	.nodeCount		= CAN2_NODE_COUNT,
-// 	.rxHandler		= NULL,
-// 	.bridgeDriver	= &CAND1
-// };
+static const canThreadConfig_t CAN2_CONFIG =
+{
+	.name			= "can2_rx",
+	.driver			= &CAND2,
+	.period			= TIME_MS2I (10),
+	.nodes			= can2Nodes,
+	.nodeCount		= CAN2_NODE_COUNT,
+	.rxHandler		= NULL
+};
 
 #define CAN_TX_THREAD_PERIOD TIME_MS2I (250)
 
@@ -112,10 +112,17 @@ static const bmsConfig_t BMS_CONFIG =
 	.timeoutPeriod	= TIME_MS2I (1000)
 };
 
-static const ecumasterGpsConfig_t GPS_CONFIG =
+static const ecumasterGpsConfig_t ECUMASTER_CONFIG =
 {
 	.driver			= &CAND1,
 	.timeoutPeriod	= TIME_MS2I (300),
+};
+
+static const sibConfig_t SIB_CONFIG =
+{
+	.driver			= &CAND2,
+	.timeoutPeriod	= TIME_MS2I (500),
+	.canId			= 0x405
 };
 
 // Threads --------------------------------------------------------------------------------------------------------------------
@@ -152,22 +159,23 @@ bool canInterfaceInit (tprio_t priority)
 		return false;
 	palClearLine (LINE_CAN1_STBY);
 
-	// // CAN 2 driver initialization
-	// if (canStart (&CAND2, &CAN_DRIVER_CONFIG) != MSG_OK)
-	// 	return false;
-	// palClearLine (LINE_CAN2_STBY);
+	// CAN 2 driver initialization
+	if (canStart (&CAND2, &CAN_DRIVER_CONFIG) != MSG_OK)
+		return false;
+	palClearLine (LINE_CAN2_STBY);
 
 	// Initialize the CAN nodes
 	for (uint8_t index = 0; index < AMK_COUNT; ++index)
 		amkInit (amks + index, AMK_CONFIGS + index);
 	bmsInit (&bms, &BMS_CONFIG);
-	ecumasterInit (&gps, &GPS_CONFIG);
+	ecumasterInit (&ecumaster, &ECUMASTER_CONFIG);
+	sibInit (&steeringInputBoard, &SIB_CONFIG);
 
 	// Create the CAN 1 RX thread
 	canThreadStart (can1RxThreadWa, sizeof (can1RxThreadWa), priority, &CAN1_CONFIG);
 
-	// // Create the CAN 2 RX thread
-	// canThreadStart (can2RxThreadWa, sizeof (can2RxThreadWa), priority, &CAN2_CONFIG);
+	// Create the CAN 2 RX thread
+	canThreadStart (can2RxThreadWa, sizeof (can2RxThreadWa), priority, &CAN2_CONFIG);
 
 	// Create the CAN 1 TX thread
 	chThdCreateStatic (&can1TxThreadWa, sizeof (can1TxThreadWa), LOWPRIO, can1TxThread, NULL);

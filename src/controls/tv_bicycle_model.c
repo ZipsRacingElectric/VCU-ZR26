@@ -27,22 +27,22 @@ tvOutput_t tvBicycleModel (const tvInput_t* input, const void* configPointer)
 
 	// Get IMU-based measurements
 
-	canNodeLock ((canNode_t*) &gps);
+	canNodeLock ((canNode_t*) &ecumaster);
 
-	if (gps.state != CAN_NODE_VALID)
+	if (ecumaster.state != CAN_NODE_VALID)
 	{
-		canNodeUnlock ((canNode_t*) &gps);
+		canNodeUnlock ((canNode_t*) &ecumaster);
 		return (tvOutput_t) { .valid = false };
 	}
 
 	// deg/s => rad/s
 	// TODO(Barach): Replace with M_PI
-	float measuredYawRate = gps.yAngleRate * 3.141592653589793238f / 180.0f;
+	float measuredYawRate = ecumaster.yAngleRate * 3.141592653589793238f / 180.0f;
 
 	// km/h => m/s
-	float measuredSpeed = gps.speed * 1000.0f / 3600.0f;
+	float measuredSpeed = ecumaster.speed * 1000.0f / 3600.0f;
 
-	canNodeUnlock ((canNode_t*) &gps);
+	canNodeUnlock ((canNode_t*) &ecumaster);
 
 	if (sas.state != ANALOG_SENSOR_VALID)
 		return (tvOutput_t) { .valid = false };

@@ -49,6 +49,7 @@ include common/src/can/can_node.mk
 include common/src/can/can_thread.mk
 include common/src/can/ecumaster_gps_v2.mk
 include common/src/can/eeprom_can.mk
+include common/src/can/steering_input_board.mk
 
 include common/src/controls/pid_controller.mk
 
