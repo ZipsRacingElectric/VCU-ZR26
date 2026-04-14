@@ -66,7 +66,6 @@ typedef struct
 	float regenDeratingSpeedStart;		// 0x00F4
 
 	bool sasEnabled;					// 0x00F8
-	uint8_t sasAddr;					// 0x00F9
 
 	tvBicycleModelConfig_t bicycleConfig;	// 0x00FC
 } eepromMap_t;
