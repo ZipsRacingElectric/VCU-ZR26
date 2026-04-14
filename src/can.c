@@ -23,14 +23,15 @@ ecumasterGps_t	gps;
 #define CAN1_NODE_COUNT (sizeof (can1Nodes) / sizeof (canNode_t*))
 canNode_t* can1Nodes [] =
 {
-	(canNode_t*) &bms, (canNode_t*) &gps
-};
-
-#define CAN2_NODE_COUNT (sizeof (can2Nodes) / sizeof (canNode_t*))
-canNode_t* can2Nodes [] =
-{
+	(canNode_t*) &bms, (canNode_t*) &gps,
 	(canNode_t*) &amkRl, (canNode_t*) &amkRr, (canNode_t*) &amkFl, (canNode_t*) &amkFr
 };
+
+// #define CAN2_NODE_COUNT (sizeof (can2Nodes) / sizeof (canNode_t*))
+// canNode_t* can2Nodes [] =
+// {
+// 	(canNode_t*) &amkRl, (canNode_t*) &amkRr, (canNode_t*) &amkFl, (canNode_t*) &amkFr
+// };
 
 // Configurations -------------------------------------------------------------------------------------------------------------
 
@@ -45,16 +46,16 @@ static const canThreadConfig_t CAN1_CONFIG =
 	.bridgeDriver	= NULL
 };
 
-static const canThreadConfig_t CAN2_CONFIG =
-{
-	.name			= "can2_rx",
-	.driver			= &CAND2,
-	.period			= TIME_MS2I (10),
-	.nodes			= can2Nodes,
-	.nodeCount		= CAN2_NODE_COUNT,
-	.rxHandler		= NULL,
-	.bridgeDriver	= &CAND1
-};
+// static const canThreadConfig_t CAN2_CONFIG =
+// {
+// 	.name			= "can2_rx",
+// 	.driver			= &CAND2,
+// 	.period			= TIME_MS2I (10),
+// 	.nodes			= can2Nodes,
+// 	.nodeCount		= CAN2_NODE_COUNT,
+// 	.rxHandler		= NULL,
+// 	.bridgeDriver	= &CAND1
+// };
 
 #define CAN_TX_THREAD_PERIOD TIME_MS2I (250)
 
@@ -77,29 +78,29 @@ static const amkInverterConfig_t AMK_CONFIGS [AMK_COUNT] =
 {
 	// RL
 	{
-		.mainDriver		= &CAND2,
-		.bridgeDriver	= &CAND1,
+		.mainDriver		= &CAND1,
+		.bridgeDriver	= NULL,
 		.baseId			= 0x200,
 		.timeoutPeriod	= TIME_MS2I (100),
 	},
 	// RR
 	{
-		.mainDriver		= &CAND2,
-		.bridgeDriver	= &CAND1,
+		.mainDriver		= &CAND1,
+		.bridgeDriver	= NULL,
 		.baseId			= 0x201,
 		.timeoutPeriod	= TIME_MS2I (100),
 	},
 	// FL
 	{
-		.mainDriver		= &CAND2,
-		.bridgeDriver	= &CAND1,
+		.mainDriver		= &CAND1,
+		.bridgeDriver	= NULL,
 		.baseId			= 0x202,
 		.timeoutPeriod	= TIME_MS2I (100),
 	},
 	// FR
 	{
-		.mainDriver		= &CAND2,
-		.bridgeDriver	= &CAND1,
+		.mainDriver		= &CAND1,
+		.bridgeDriver	= NULL,
 		.baseId			= 0x203,
 		.timeoutPeriod	= TIME_MS2I (100),
 	}
@@ -151,10 +152,10 @@ bool canInterfaceInit (tprio_t priority)
 		return false;
 	palClearLine (LINE_CAN1_STBY);
 
-	// CAN 2 driver initialization
-	if (canStart (&CAND2, &CAN_DRIVER_CONFIG) != MSG_OK)
-		return false;
-	palClearLine (LINE_CAN2_STBY);
+	// // CAN 2 driver initialization
+	// if (canStart (&CAND2, &CAN_DRIVER_CONFIG) != MSG_OK)
+	// 	return false;
+	// palClearLine (LINE_CAN2_STBY);
 
 	// Initialize the CAN nodes
 	for (uint8_t index = 0; index < AMK_COUNT; ++index)
@@ -165,8 +166,8 @@ bool canInterfaceInit (tprio_t priority)
 	// Create the CAN 1 RX thread
 	canThreadStart (can1RxThreadWa, sizeof (can1RxThreadWa), priority, &CAN1_CONFIG);
 
-	// Create the CAN 2 RX thread
-	canThreadStart (can2RxThreadWa, sizeof (can2RxThreadWa), priority, &CAN2_CONFIG);
+	// // Create the CAN 2 RX thread
+	// canThreadStart (can2RxThreadWa, sizeof (can2RxThreadWa), priority, &CAN2_CONFIG);
 
 	// Create the CAN 1 TX thread
 	chThdCreateStatic (&can1TxThreadWa, sizeof (can1TxThreadWa), LOWPRIO, can1TxThread, NULL);
