@@ -5,7 +5,7 @@
 		{
 			"name": "Cortex Debug",
 			"cwd": "${workspaceRoot}",
-			"executable": "./build/vcu_2025.elf",
+			"executable": "./build/vcu_zr26.elf",
 			"request": "launch",
 			"type": "cortex-debug",
 			"servertype": "openocd",

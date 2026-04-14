@@ -1,5 +1,5 @@
 # Project name
-PROJECT = vcu_2025
+PROJECT = vcu_zr26
 
 # Imported files
 CHIBIOS  := $(CHIBIOS_SOURCE_PATH)

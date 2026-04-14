@@ -1,6 +1,6 @@
-# Vehicle Control Unit - Zips Racing ZR25
+# Vehicle Control Unit - Zips Racing ZR26
 
-Embedded firmware for the vehicle control unit of ZR25. The VCU is the primary control unit of the vehicle, it is responsible for implementing the vehicle's state, torque distribution, and torque security.
+Embedded firmware for the vehicle control unit of ZR26. The VCU is the primary control unit of the vehicle, it is responsible for implementing the vehicle's state, torque distribution, and torque security.
 
 ## Usage
 
