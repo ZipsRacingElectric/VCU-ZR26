@@ -40,7 +40,6 @@ include common/src/fault_handler.mk
 
 include common/src/peripherals/adc/analog_linear.mk
 include common/src/peripherals/adc/stm_adc.mk
-include common/src/peripherals/i2c/am4096.mk
 include common/src/peripherals/i2c/as5600.mk
 include common/src/peripherals/i2c/mc24lc32.mk
 

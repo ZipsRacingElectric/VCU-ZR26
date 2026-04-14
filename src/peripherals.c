@@ -15,9 +15,9 @@ mc24lc32_t		physicalEeprom;
 virtualEeprom_t virtualEeprom;
 linearSensor_t	glvBattery;
 pedals_t		pedals;
-//am4096_t		sasDriver;
-as5600_t		sasADC;
+as5600_t		sasAdc;
 sas_t			sas;
+bool			bspdFault;
 
 // Private
 eeprom_t		readonlyWriteonlyEeprom;
@@ -41,24 +41,13 @@ static const I2CConfig I2C2_CONFIG =
 };
 
 /// @brief Configuration for the steering-angle-sensor's ADC driver.
-static as5600Config_t sasADCConfig =
+static const as5600Config_t SAS_ADC_CONFIG =
 {
 	.addr		= 0x36,
 	.i2c 		= &I2CD2,
 	.sensor 	= (analogSensor_t*) &sas,
 	.timeout 	= TIME_MS2I (100)
 };
-// AS5600 registers: ZPOS=0x01, MPOS=0x03, ANGLE=0x0E AS5600 Datasheet Pg. 18
-
-
-/// @brief Configuration for the steering-angle-sensor's ADC driver.
-//static am4096Config_t sasDriverConfig =
-//{
-//	.addr		= 0x00,
-//	.i2c		= &I2CD1,
-//	.sensor		= (analogSensor_t*) &sas,
-//	.timeout	= TIME_MS2I (5)
-//};
 
 /// @brief Configuration for the ADC1 peripheral.
 static const stmAdcConfig_t ADC_CONFIG =
@@ -69,7 +58,7 @@ static const stmAdcConfig_t ADC_CONFIG =
 		ADC_CHANNEL_IN10,	// APPS-1
 		ADC_CHANNEL_IN11,	// APPS-2
 		ADC_CHANNEL_IN12,	// BSE-F
-		ADC_CHANNEL_IN12,	// BSE-R TODO(Barach)
+		ADC_CHANNEL_IN13,	// BSE-R
 		ADC_CHANNEL_IN0		// GLV Battery
 	},
 	.channelCount = 5,
@@ -96,7 +85,7 @@ static const mc24lc32Config_t PHYSICAL_EEPROM_CONFIG =
 /// @brief Configuration for the BMS's virtual EEPROM.
 static const virtualEepromConfig_t VIRTUAL_EEPROM_CONFIG =
 {
-	.count		= 3,
+	.count		= 2,
 	.entries	=
 	{
 		{
@@ -108,12 +97,7 @@ static const virtualEepromConfig_t VIRTUAL_EEPROM_CONFIG =
 			.eeprom	= &readonlyWriteonlyEeprom,
 			.addr	= 0x1000,
 			.size	= 0x1000
-		},
-		//{
-		//	.eeprom	= (eeprom_t*) &sasDriver,
-		//	.addr	= 0x2000,
-		//	.size	= 0x0038
-		//},
+		}
 	}
 };
 
@@ -166,10 +150,8 @@ void peripheralsReconfigure (void* caller)
 	pedalsInit (&pedals, &physicalEepromMap->pedalConfig);
 
 	// SAS initialization
-	// am4096 Config, so commented out //sasDriverConfig.addr = physicalEepromMap->sasAddr & 0x7F;
 	sasInit (&sas, &physicalEepromMap->sasConfig);
-	as5600Init (&sasADC, &sasADCConfig);
-	//am4096Init (&sasDriver, &sasDriverConfig);
+	as5600Init (&sasAdc, &SAS_ADC_CONFIG);
 
 	// Torque thread configuration
 	torqueThreadSetDrivingTorqueLimit (physicalEepromMap->drivingTorqueLimit);
@@ -201,9 +183,7 @@ void peripheralsSample (systime_t timePrevious, systime_t timeCurrent)
 	if (physicalEepromMap->sasEnabled)
 	{
 		// If the SAS is enabled, sample the sensor.
-		as5600Sample (&sasADC);
-		//am4096Sample (&sasDriver);
-
+		as5600Sample (&sasAdc);
 	}
 	else
 	{
@@ -211,4 +191,6 @@ void peripheralsSample (systime_t timePrevious, systime_t timeCurrent)
 		sas.value = 0;
 		sas.state = ANALOG_SENSOR_SAMPLE_INVALID;
 	}
+
+	bspdFault = palReadLine (LINE_BSPD_STATUS);
 }

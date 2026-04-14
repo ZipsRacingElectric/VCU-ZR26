@@ -41,13 +41,13 @@ extern linearSensor_t glvBattery;
 extern pedals_t pedals;
 
 /// @brief ADC measuring the steering-angle sensor.
-//extern am4096_t sasDriver;
-
-/// @brief ADC measuring the steering-angle sensor. (2026)
-extern as5600_t sasADC;
+extern as5600_t sasAdc;
 
 /// @brief Sensor measuring the steering angle of the vehicle.
 extern sas_t sas;
+
+/// @brief Indicates whether the BSPD is fault or not.
+extern bool bspdFault;
 
 // Functions ------------------------------------------------------------------------------------------------------------------
 

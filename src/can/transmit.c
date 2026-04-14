@@ -62,36 +62,14 @@
 #define STATUS_WORD_2_AMK_FL_VALID(valid)					(((uint8_t) (valid))		<< 2)
 #define STATUS_WORD_2_AMK_FR_VALID(valid)					(((uint8_t) (valid))		<< 3)
 #define STATUS_WORD_2_AMK_FAULT(state)						(((uint8_t) (state == AMK_STATE_ERROR || state == AMK_STATE_INVALID)) << 4)
+#define STATUS_WORD_2_BSPD_FAULT(fault)						(((uint8_t) (fault))		<< 5)
 #define STATUS_WORD_2_SAS_STATUS(status)					(((uint8_t) (status))		<< 6)
 
 // Functions ------------------------------------------------------------------------------------------------------------------
 
 msg_t transmitStatusMessage (CANDriver* driver, sysinterval_t timeout)
 {
-	// Byte 0:
-	//   Bits 0 & 1: Vehicle state
-	//   Bit 2: Torque plausible
-	//   Bit 3: Pedals plausible
-	//   Bit 4: Torque derating
-	//   Bits 5 & 6: EEPROM state
-	//   Bit 7: VCU fault
-	// Byte 1:
-	//   Bit 0: APPS-1 Plausible
-	//   Bit 1: APPS-1 Config Plausible
-	//   Bit 2: APPS-2 Plausible
-	//   Bit 3: APPS-2 Config Plausible
-	//   Bit 4: BSE-F Plausible
-	//   Bit 5: BSE-F Config Plausible
-	//   Bit 6: BSE-R Plausible
-	//   Bit 7: BSE-R Config Plausible
-	// Byte 2:
-	//   Bit 0: AMK RL valid
-	//   Bit 1: AMK RR valid
-	//   Bit 2: AMK FL valid
-	//   Bit 3: AMK FR valid
-	//   Bits 4 AMK fault
-	//   Bits 6 & 7: SAS status
-	// Byte 3: GLV battery voltage
+	// See DBC file for details.
 
 	bool amkRlValid = amkGetValidityLock (&amkRl);
 	bool amkRrValid = amkGetValidityLock (&amkRr);
@@ -120,6 +98,7 @@ msg_t transmitStatusMessage (CANDriver* driver, sysinterval_t timeout)
 			STATUS_WORD_2_AMK_FL_VALID (amkFlValid) |
 			STATUS_WORD_2_AMK_FR_VALID (amkFrValid) |
 			STATUS_WORD_2_AMK_FAULT (amksState) |
+			STATUS_WORD_2_BSPD_FAULT (bspdFault) |
 			STATUS_WORD_2_SAS_STATUS (sas.state),
 			VOLTAGE_TO_WORD (glvBattery.value)
 		}
@@ -130,24 +109,7 @@ msg_t transmitStatusMessage (CANDriver* driver, sysinterval_t timeout)
 
 msg_t transmitSensorInputPercent (CANDriver* driver, sysinterval_t timeout)
 {
-	// Byte 0:
-	//   Bits 0 to 7: APPS-1 Value bits 0 to 7
-	// Byte 1:
-	//   Bits 0 to 3: APPS-1 Value bits 8 to 11
-	//   Bits 4 to 7: APPS-2 Value bits 0 to 3
-	// Byte 2:
-	//   Bits 0 to 7: APPS-2 Value bits 4 to 11
-	// Byte 3:
-	//   Bits 0 to 7: BSE-F Value bits 0 to 7
-	// Byte 4:
-	//   Bits 0 to 3: BSE-F Value bits 8 to 11
-	//   Bits 4 to 7: BSE-R Value bits 0 to 3
-	// Byte 5:
-	//   Bits 0 to 7: BSE-R Value bits 4 to 11
-	// Byte 6:
-	//   Bits 0 to 7: SAS Value LO byte
-	// Byte 7:
-	//   Bits 0 to 7: SAS Value HI byte
+	// See DBC file for details.
 
 	uint16_t apps1Word	= PERCENT_TO_WORD (pedals.apps1.value * 100.0f);
 	uint16_t apps2Word	= PERCENT_TO_WORD (pedals.apps2.value * 100.0f);
@@ -178,6 +140,8 @@ msg_t transmitSensorInputPercent (CANDriver* driver, sysinterval_t timeout)
 
 msg_t transmitTemperaturesMessage (CANDriver* driver, sysinterval_t timeout)
 {
+	// See DBC file for details.
+
 	CANTxFrame frame =
 	{
 		.DLC	= 4,
@@ -195,6 +159,8 @@ msg_t transmitTemperaturesMessage (CANDriver* driver, sysinterval_t timeout)
 
 msg_t transmitConfigMessage (CANDriver* driver, sysinterval_t timeout)
 {
+	// See DBC file for details.
+
 	CANTxFrame frame =
 	{
 		.DLC	= 4,
