@@ -21,8 +21,9 @@
 #define ANGLE_TO_WORD(angle)		(int16_t) ((angle) * ANGLE_INVERSE_FACTOR)
 
 // Voltage Value (V)
-#define VOLTAGE_INVERSE_FACTOR		(255.0f / 18.0f)
-#define VOLTAGE_TO_WORD(voltage)	(uint8_t) ((voltage) * VOLTAGE_INVERSE_FACTOR)
+#define VOLTAGE_OFFSET				12.0f
+#define VOLTAGE_INVERSE_FACTOR		(255.0f / 24.0f)
+#define VOLTAGE_TO_WORD(voltage)	(uint8_t) ((voltage - VOLTAGE_OFFSET) * VOLTAGE_INVERSE_FACTOR)
 
 // Torque Values
 #define TORQUE_INVERSE_FACTOR		(255.0f / 100.0f)
