@@ -323,10 +323,10 @@
       <pin5
         ID="BRAKE_LIGHT_CONTROL"
         Type="PushPull"
-        Level="High"
+        Level="Low"
         Speed="Minimum"
         Resistor="PullUp"
-        Mode="Input"
+        Mode="Output"
         Alternate="0" />
       <pin6
         ID=""
