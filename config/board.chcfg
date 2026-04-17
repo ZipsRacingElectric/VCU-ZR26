@@ -317,8 +317,8 @@
         Type="PushPull"
         Level="High"
         Speed="Minimum"
-        Resistor="PullUp"
-        Mode="Input"
+        Resistor="Floating"
+        Mode="Analog"
         Alternate="0" />
       <pin5
         ID="BRAKE_LIGHT_CONTROL"

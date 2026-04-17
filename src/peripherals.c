@@ -59,7 +59,7 @@ static const stmAdcConfig_t ADC_CONFIG =
 		ADC_CHANNEL_IN11,	// APPS-2
 		ADC_CHANNEL_IN12,	// BSE-F
 		ADC_CHANNEL_IN13,	// BSE-R
-		ADC_CHANNEL_IN15	// GLV Battery
+		ADC_CHANNEL_IN14	// GLV Battery
 	},
 	.channelCount = 5,
 	.sensors =
