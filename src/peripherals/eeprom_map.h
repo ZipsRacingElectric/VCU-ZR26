@@ -40,8 +40,8 @@ typedef struct
 	float powerLimitPidKd;				// 0x0048
 	float powerLimitPidA;				// 0x004C
 
-	uint16_t glvBattery11v5;			// 0x0050
-	uint16_t glvBattery14v4;			// 0x0052
+	uint16_t glvBattery20v;				// 0x0050
+	uint16_t glvBattery29v;				// 0x0052
 
 	uint8_t pad1 [12];
 

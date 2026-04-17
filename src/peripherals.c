@@ -59,7 +59,7 @@ static const stmAdcConfig_t ADC_CONFIG =
 		ADC_CHANNEL_IN11,	// APPS-2
 		ADC_CHANNEL_IN12,	// BSE-F
 		ADC_CHANNEL_IN13,	// BSE-R
-		ADC_CHANNEL_IN0		// GLV Battery
+		ADC_CHANNEL_IN15	// GLV Battery
 	},
 	.channelCount = 5,
 	.sensors =
@@ -167,10 +167,10 @@ void peripheralsReconfigure (void* caller)
 	);
 
 	// GLV battery initialization
-	uint16_t glvSample11v5 = physicalEepromMap->glvBattery11v5;
-	uint16_t glvSample14v4 = physicalEepromMap->glvBattery14v4;
-	glvBatteryConfig.valueMin = lerp2d (0, glvSample11v5, 11.5f, glvSample14v4, 14.4f);
-	glvBatteryConfig.valueMax = lerp2d (4095, glvSample11v5, 11.5f, glvSample14v4, 14.4f);
+	uint16_t glvSample20v = physicalEepromMap->glvBattery20v;
+	uint16_t glvSample29v = physicalEepromMap->glvBattery29v;
+	glvBatteryConfig.valueMin = lerp2d (0, glvSample20v, 20.0f, glvSample29v, 29.0f);
+	glvBatteryConfig.valueMax = lerp2d (4095, glvSample20v, 20.0f, glvSample29v, 29.0f);
 	linearSensorInit (&glvBattery, &glvBatteryConfig);
 }
 

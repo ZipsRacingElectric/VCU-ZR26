@@ -313,7 +313,7 @@
         Mode="Analog"
         Alternate="0" />
       <pin4
-        ID=""
+        ID="GLV_BATTERY"
         Type="PushPull"
         Level="High"
         Speed="Minimum"
@@ -321,7 +321,7 @@
         Mode="Input"
         Alternate="0" />
       <pin5
-        ID=""
+        ID="BRAKE_LIGHT_CONTROL"
         Type="PushPull"
         Level="High"
         Speed="Minimum"

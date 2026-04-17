@@ -1,6 +1,0 @@
-No dedicated brake light output
-No GLV battery voltage measurment
-No BSPD LED?
-redundant BSE inputs
-J2 => 24V
-K2 => BSPD LED sink

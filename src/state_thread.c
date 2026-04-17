@@ -124,6 +124,7 @@ THD_FUNCTION (stateThread, arg)
 		// TODO(Barach): Enable if temp > EEPROM config value
 		// Enable the cooling systems if high voltage is enabled.
 		bool coolingEnabled = vehicleState == VEHICLE_STATE_HIGH_VOLTAGE || vehicleState == VEHICLE_STATE_READY_TO_DRIVE;
+		palWriteLine (LINE_OUTPUT_1, coolingEnabled);
 		palWriteLine (LINE_OUTPUT_2, coolingEnabled);
 
 		// Stop the RTD buzzer if it is past the deadline.
@@ -139,16 +140,15 @@ THD_FUNCTION (stateThread, arg)
 		}
 
 		// VCU fault light
-		// TODO(Barach): Include AMKs here?
 		vcuFault =
 			!torquePlausible ||
-			vehicleState == VEHICLE_STATE_FAILED;// ||
-			// amksState == AMK_STATE_ERROR;
+			vehicleState == VEHICLE_STATE_FAILED ||
+			amksState == AMK_STATE_ERROR;
 
 		palWriteLine (LINE_LED_FAULT, vcuFault);
 
 		// Brake light
-		palWriteLine (LINE_OUTPUT_1, pedals.braking);
+		palWriteLine (LINE_BRAKE_LIGHT_CONTROL, pedals.braking);
 
 		// Broadcast the sensor input message and debug message
 		transmitSensorInputPercent (&CAND1, STATE_CONTROL_PERIOD);
