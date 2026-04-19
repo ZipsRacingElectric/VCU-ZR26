@@ -23,6 +23,10 @@
 
 #define CUMULATIVE_TORQUE_TOLERANCE 0.05f
 
+#define SIB_TORQUE_UP_INDEX			6
+#define SIB_TORQUE_DOWN_INDEX		5
+#define SIB_TORQUE_STEP				12.0f
+
 // Global Data ----------------------------------------------------------------------------------------------------------------
 
 /// @brief The last calculated torque request.
@@ -122,7 +126,7 @@ static float powerLimitPidA = 0;
  * @param deltaTime The amount of time that has passed since the last call to this function.
  * @return The calculated input structure.
  */
-tvInput_t requestCalculateInput (float deltaTime, bool* button3Held, bool* button5Held, bool* resetRequest);
+tvInput_t requestCalculateInput (float deltaTime, bool* resetRequest);
 
 /**
  * @brief Executes the selected torque-vectoring algorithm, calculating an amount of torque to request of each inverter.
@@ -166,8 +170,6 @@ THD_FUNCTION (torqueThread, arg)
 	(void) arg;
 	chRegSetThreadName ("torque_control");
 
-	bool button3Held = false;
-	bool button5Held = false;
 	systime_t timeCurrent = chVTGetSystemTimeX ();
 	while (true)
 	{
@@ -177,12 +179,18 @@ THD_FUNCTION (torqueThread, arg)
 		chThdSleepUntilWindowed (timeCurrent, timeNext);
 		timeCurrent = chVTGetSystemTimeX ();
 
+		// Torque Up / Down buttons
+		if (sibGetButtonDownLock (&steeringInputBoard, SIB_TORQUE_UP_INDEX))
+			torqueThreadSetDrivingTorqueLimit (drivingTorqueLimit + SIB_TORQUE_STEP);
+		if (sibGetButtonDownLock (&steeringInputBoard, SIB_TORQUE_DOWN_INDEX))
+			torqueThreadSetDrivingTorqueLimit (drivingTorqueLimit - SIB_TORQUE_STEP);
+
 		// Sample the sensor inputs.
 		peripheralsSample (timePrevious, timeCurrent);
 
 		// Calculate the torque request and apply power limiting.
 		bool resetRequest = false;
-		tvInput_t input = requestCalculateInput (TORQUE_THREAD_PERIOD_S, &button3Held, &button5Held, &resetRequest);
+		tvInput_t input = requestCalculateInput (TORQUE_THREAD_PERIOD_S, &resetRequest);
 
 		torqueRequest = requestCalculateOutput (&input);
 		bool derating = requestApplyPowerLimit (&torqueRequest, TORQUE_THREAD_PERIOD_S);
@@ -280,7 +288,7 @@ void torqueThreadSetPowerLimitPid (float kp, float ki, float kd, float a)
 	powerLimitPidA		= a;
 }
 
-tvInput_t requestCalculateInput (float deltaTime, bool* button3Held, bool* button5Held, bool* resetRequest)
+tvInput_t requestCalculateInput (float deltaTime, bool* resetRequest)
 {
 	float regenRequest = 0.0f;
 
