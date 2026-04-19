@@ -102,10 +102,6 @@ void pedalsUpdate (pedals_t* pedals, systime_t timePrevious, systime_t timeCurre
 	float appsDelta = pedals->apps1.value - pedals->apps2.value;
 	pedals->apps10PercentPlausible = appsDelta <= APPS_DELTA_MAX && appsDelta >= -APPS_DELTA_MAX;
 
-	// BSE 10% check (not required by FSAE rules, but might as well have it).
-	float bseDelta = pedals->bseF.value - pedals->bseR.value;
-	pedals->bse10PercentPlausible = bseDelta <= BSE_DELTA_MAX && bseDelta >= -BSE_DELTA_MAX;
-
 	// APPS 25/5 check (FSAE Rules EV.4.7)
 	if (pedals->appsRequest > 0.25 && pedals->braking)
 		pedals->apps25_5Plausible = false;
@@ -119,7 +115,6 @@ void pedalsUpdate (pedals_t* pedals, systime_t timePrevious, systime_t timeCurre
 		pedals->bseF.state == ANALOG_SENSOR_VALID &&
 		pedals->bseR.state == ANALOG_SENSOR_VALID &&
 		pedals->apps10PercentPlausible &&
-		pedals->bse10PercentPlausible &&
 		pedals->apps25_5Plausible;
 
 	// 100ms plausibility timeout (FSAE Rules T.4.2.5)

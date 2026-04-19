@@ -75,8 +75,6 @@ typedef struct
 	systime_t plausibilityDeadline;
 	/// @brief Indicates the instantaneous APPS 10% plausibility.
 	bool apps10PercentPlausible;
-	/// @brief Indicates the instantaneous BSE 10% plausibility.
-	bool bse10PercentPlausible;
 	/// @brief Indicates the instantaneous APPS 25% / 5% plausibility.
 	bool apps25_5Plausible;
 
