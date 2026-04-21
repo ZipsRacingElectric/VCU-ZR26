@@ -28,7 +28,7 @@ void hardFaultCallback (void)
 	while (true)
 	{
 		palToggleLine (LINE_LED_FAULT);
-		while (DWT->CYCCNT % 16800000 != 0);
+		for (uint32_t index = 0; index < 4000000; ++index);
 	}
 }
 
