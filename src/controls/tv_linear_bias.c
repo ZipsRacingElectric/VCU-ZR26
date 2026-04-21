@@ -5,16 +5,17 @@
 #include "peripherals.h"
 #include "controls/lerp.h"
 
-tvOutput_t tvLinearBias (const tvInput_t* input, const void* configPointer)
+tvOutput_t tvLinearBias (const tvInput_t* input, const void* configPointer, void* statePointer)
 {
 	const tvLinearBiasConfig_t* config = configPointer;
+	(void) statePointer;
 
 	// Constant front-to-rear bias
 
-	float drivingBiasRear = config->drivingFrontRearBias;
+	float drivingBiasRear = input->drivingFrBias;
 	float drivingBiasFront = 1.0f - drivingBiasRear;
 
-	float regenBiasRear = config->regenFrontRearBias;
+	float regenBiasRear = input->regenFrBias;
 	float regenBiasFront = 1.0f - regenBiasRear;
 
 	// Linearly interpolate from beginning angle & 50% bias to end angle & end bias (for both positive and negative).

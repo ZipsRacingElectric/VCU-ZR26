@@ -26,11 +26,6 @@
 
 typedef struct
 {
-	/// @brief The front-to-rear bias for driving torque.
-	float drivingFrontRearBias;
-	/// @brief The front-to-rear bias for regen torque.
-	float regenFrontRearBias;
-
 	/// @brief The steering angle at which the left-to-right bias starts shifting from 50/50.
 	float steeringAngleBiasBegin;
 	/// @brief The steering angle at which the left-to-right bias stops shifting to the end value.
@@ -42,6 +37,6 @@ typedef struct
 // Functions ------------------------------------------------------------------------------------------------------------------
 
 /// @brief Entrypoint to the torque vectoring algorithm.
-tvOutput_t tvLinearBias (const tvInput_t* input, const void* configPointer);
+tvOutput_t tvLinearBias (const tvInput_t* input, const void* configPointer, void* statePointer);
 
 #endif // TV_SAS_LINEAR_H

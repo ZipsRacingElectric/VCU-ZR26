@@ -156,6 +156,8 @@ void peripheralsReconfigure (void* caller)
 	// Torque thread configuration
 	torqueThreadSetDrivingTorqueLimit (physicalEepromMap->drivingTorqueLimit);
 	torqueThreadSetRegenTorqueLimit (physicalEepromMap->regenTorqueLimit);
+	torqueThreadSetDrivingFrBias (physicalEepromMap->drivingFrBias);
+	torqueThreadSetRegenFrBias (physicalEepromMap->regenFrBias);
 	torqueThreadSelectAlgorithm (physicalEepromMap->torqueAlgoritmIndex);
 	torqueThreadSetPowerLimit (physicalEepromMap->powerLimit);
 	torqueThreadSetPowerLimitPid

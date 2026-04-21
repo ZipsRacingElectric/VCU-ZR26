@@ -18,6 +18,6 @@ typedef struct
 } tvBicycleModelConfig_t;
 
 /// @brief Entrypoint to the torque vectoring algorithm.
-tvOutput_t tvBicycleModel (const tvInput_t* input, const void* configPointer);
+tvOutput_t tvBicycleModel (const tvInput_t* input, const void* configPointer, void* statePointer);
 
 #endif // TV_BICYCLE_MODEL_H

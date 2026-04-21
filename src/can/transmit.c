@@ -7,9 +7,6 @@
 #include "state_thread.h"
 #include "torque_thread.h"
 
-// C Standard Library
-#include <string.h>
-
 // Conversions -----------------------------------------------------------------------------------------------------------------
 
 // Percent Values (unit %)
@@ -32,6 +29,10 @@
 // Temperature Values
 #define TEMPERATURE_INVERSE_FACTOR	10.0f
 #define TEMPERATURE_TO_WORD(temp)	(uint16_t) ((temp) * TEMPERATURE_INVERSE_FACTOR)
+
+// Ratio Values
+#define RATIO_INVERSE_FACTOR		255.0f
+#define RATIO_TO_WORD(ratio)		(uint8_t) ((ratio) * RATIO_INVERSE_FACTOR)
 
 // Message IDs ----------------------------------------------------------------------------------------------------------------
 
@@ -164,14 +165,16 @@ msg_t transmitConfigMessage (CANDriver* driver, sysinterval_t timeout)
 
 	CANTxFrame frame =
 	{
-		.DLC	= 4,
+		.DLC	= 5,
 		.IDE	= CAN_IDE_STD,
 		.SID	= CONFIG_MESSAGE_ID,
 		.data8	=
 		{
 			TORQUE_TO_WORD (drivingTorqueLimit),
 			TORQUE_TO_WORD (regenTorqueLimit),
-			physicalEepromMap->torqueAlgoritmIndex
+			physicalEepromMap->torqueAlgoritmIndex,
+			RATIO_TO_WORD (drivingFrontRearBias),
+			RATIO_TO_WORD (regenFrontRearBias)
 		}
 	};
 

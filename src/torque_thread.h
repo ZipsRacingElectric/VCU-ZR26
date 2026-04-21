@@ -20,11 +20,20 @@
 
 // Global Data ----------------------------------------------------------------------------------------------------------------
 
+/// @brief The last calculated torque request. Only used for debugging, do not modify.
 extern tvOutput_t torqueRequest;
 
+/// @brief The cumulative amount of driving (positive) torque that can be distributed across all motors.
 extern float drivingTorqueLimit;
 
+/// @brief The cumulative amount of regenerative (negative) torque that can be distributed across all motors.
 extern float regenTorqueLimit;
+
+/// @brief The front-to-rear bias for distributing driving torque. Only used by certain torque vectoring algorithms.
+extern float drivingFrontRearBias;
+
+/// @brief The front-to-rear bias for distributing regen torque. Only used by certain torque vectoring algorithms.
+extern float regenFrontRearBias;
 
 // Functions ------------------------------------------------------------------------------------------------------------------
 
@@ -66,5 +75,11 @@ void torqueThreadSetPowerLimit (float powerLimit);
  * @param a The measurement gain to set, in range [0, 1).
  */
 void torqueThreadSetPowerLimitPid (float kp, float ki, float kd, float a);
+
+/// @brief Sets the driving front-to-rear bias.
+void torqueThreadSetDrivingFrBias (float bias);
+
+/// @brief Sets the regen front-to-rear bias.
+void torqueThreadSetRegenFrBias (float bias);
 
 #endif // TORQUE_THREAD_H

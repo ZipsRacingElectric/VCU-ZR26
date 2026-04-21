@@ -28,6 +28,14 @@ typedef struct
 	/// @brief The maximum amount of cumulative requested regenerative torque. This value is set by the driver's configuration
 	/// and the regen request.
 	float regenTorqueLimit;
+
+	/// @brief The front-to-rear bias for distributing driving torque. Not required for all torque vectoring algorithms.
+	/// 1 => 100% rearwards, 0 => 100% frontwards, 0.5 => 50:50 split.
+	float drivingFrBias;
+
+	/// @brief The front-to-rear bias for distributing regen torque. Not required for all torque vectoring algorithms.
+	/// 1 => 100% rearwards, 0 => 100% frontwards, 0.5 => 50:50 split.
+	float regenFrBias;
 } tvInput_t;
 
 /// @brief Output to TV algoritms.
@@ -49,12 +57,13 @@ typedef struct
 	float torqueFr;
 } tvOutput_t;
 
-typedef tvOutput_t (tvFunction_t) (const tvInput_t* input, const void* configPointer);
+typedef tvOutput_t (tvFunction_t) (const tvInput_t* input, const void* configPointer, void* statePointer);
 
 typedef struct
 {
 	tvFunction_t* entrypoint;
 	const void* config;
+	void* state;
 } tvAlgorithm_t;
 
 #endif // TORQUE_VECTORING_H

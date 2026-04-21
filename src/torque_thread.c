@@ -7,7 +7,6 @@
 #include "controls/torque_vectoring.h"
 #include "controls/tv_const_bias.h"
 #include "controls/tv_linear_bias.h"
-#include "controls/tv_bicycle_model.h"
 #include "peripherals.h"
 #include "state_thread.h"
 #include "controls/lerp.h"
@@ -21,41 +20,25 @@
 #define TORQUE_THREAD_PERIOD_S (TIME_I2US (TORQUE_THREAD_PERIOD) / 1000000.0f)
 #define TORQUE_THREAD_CAN_MESSAGE_TIMEOUT (TORQUE_THREAD_PERIOD / 4)
 
-#define CUMULATIVE_TORQUE_TOLERANCE 0.05f
+#define CUMULATIVE_TORQUE_TOLERANCE		0.05f
 
-#define SIB_TORQUE_UP_INDEX			6
-#define SIB_TORQUE_DOWN_INDEX		5
-#define SIB_TORQUE_STEP				12.0f
+#define SIB_TORQUE_UP_INDEX				2
+#define SIB_TORQUE_DOWN_INDEX			3
+#define SIB_TORQUE_STEP					12.0f
+
+#define SIB_DRIVING_FR_BIAS_UP_INDEX	5
+#define SIB_DRIVING_FR_BIAS_DOWN_INDEX	6
+#define SIB_DRIVING_FR_BIAS_STEP		0.05
 
 // Global Data ----------------------------------------------------------------------------------------------------------------
 
-/// @brief The last calculated torque request.
 tvOutput_t torqueRequest;
-
-/// @brief The cumulative driving (positive) torque limit.
 float drivingTorqueLimit = 0.0f;
-
-/// @brief The cumulative regenerative (negative) torque limit.
 float regenTorqueLimit = 0.0f;
+float drivingFrontRearBias = 0.5f;
+float regenFrontRearBias = 0.5f;
 
-/// @brief The index of the selected torque-vectoring algorithm.
 static uint8_t algoritmIndex = 0;
-
-static const tvConstBiasConfig_t STF_L_CONFIG =
-{
-	.drivingFrontRearBias	= 1,
-	.drivingLeftRightBias	= 1,
-	.regenFrontRearBias		= 1,
-	.regenLeftRightBias		= 1
-};
-
-static const tvConstBiasConfig_t STF_R_CONFIG =
-{
-	.drivingFrontRearBias	= 1,
-	.drivingLeftRightBias	= 0,
-	.regenFrontRearBias		= 1,
-	.regenLeftRightBias		= 0
-};
 
 /// @brief The array of selectable torque-vectoring algorithms.
 #define TV_ALGORITHM_COUNT (sizeof (tvAlgorithms) / sizeof (tvAlgorithm_t))
@@ -64,28 +47,15 @@ static tvAlgorithm_t tvAlgorithms [] =
 	{
 		// Straight-diff
 		.entrypoint	= &tvConstBias,
-		.config		= &physicalEepromMap->sdConfig
+		.config		= &physicalEepromMap->sdConfig,
+		.state		= NULL
 	},
 	{
 		// Linear-steering
 		.entrypoint	= &tvLinearBias,
-		.config		= &physicalEepromMap->lsConfig
+		.config		= &physicalEepromMap->lsConfig,
+		.state		= NULL
 	},
-	{
-		// Single-tire-fire (left)
-		.entrypoint	= &tvConstBias,
-		.config		= &STF_L_CONFIG
-	},
-	{
-		// Single-tire-fire (right)
-		.entrypoint	= &tvConstBias,
-		.config		= &STF_R_CONFIG
-	},
-	{
-		// Bicycle mode
-		.entrypoint = &tvBicycleModel,
-		.config		= &physicalEepromMap->bicycleConfig
-	}
 };
 
 /**
@@ -174,11 +144,17 @@ THD_FUNCTION (torqueThread, arg)
 		chThdSleepUntilWindowed (timeCurrent, timeNext);
 		timeCurrent = chVTGetSystemTimeX ();
 
-		// Torque Up / Down buttons
+		// Torque up / down buttons
 		if (sibGetButtonDownLock (&steeringInputBoard, SIB_TORQUE_UP_INDEX))
 			torqueThreadSetDrivingTorqueLimit (drivingTorqueLimit + SIB_TORQUE_STEP);
 		if (sibGetButtonDownLock (&steeringInputBoard, SIB_TORQUE_DOWN_INDEX))
 			torqueThreadSetDrivingTorqueLimit (drivingTorqueLimit - SIB_TORQUE_STEP);
+
+		// Driving FR bias up / down buttons
+		if (sibGetButtonDownLock (&steeringInputBoard, SIB_DRIVING_FR_BIAS_UP_INDEX))
+			torqueThreadSetDrivingFrBias (drivingFrontRearBias + SIB_DRIVING_FR_BIAS_STEP);
+		if (sibGetButtonDownLock (&steeringInputBoard, SIB_DRIVING_FR_BIAS_DOWN_INDEX))
+			torqueThreadSetDrivingFrBias (drivingFrontRearBias - SIB_DRIVING_FR_BIAS_STEP);
 
 		// Sample the sensor inputs.
 		peripheralsSample (timePrevious, timeCurrent);
@@ -293,6 +269,26 @@ void torqueThreadSetPowerLimitPid (float kp, float ki, float kd, float a)
 	powerLimitPidA		= a;
 }
 
+void torqueThreadSetDrivingFrBias (float bias)
+{
+	if (bias < 0)
+		bias = 0;
+	if (bias > 1)
+		bias = 1;
+
+	drivingFrontRearBias = bias;
+}
+
+void torqueThreadSetRegenFrBias (float bias)
+{
+	if (bias < 0)
+		bias = 0;
+	if (bias > 1)
+		bias = 1;
+
+	regenFrontRearBias = bias;
+}
+
 tvInput_t requestCalculateInput (float deltaTime)
 {
 	// Regen input
@@ -318,7 +314,7 @@ tvInput_t requestCalculateInput (float deltaTime)
 tvOutput_t requestCalculateOutput (tvInput_t* input)
 {
 	// Use the user-specified torque-vectoring algorithm to calculate the torque request.
-	return tvAlgorithms [algoritmIndex].entrypoint (input, tvAlgorithms [algoritmIndex].config);
+	return tvAlgorithms [algoritmIndex].entrypoint (input, tvAlgorithms [algoritmIndex].config, tvAlgorithms [algoritmIndex].state);
 }
 
 bool requestApplyPowerLimit (tvOutput_t* output, float deltaTime)

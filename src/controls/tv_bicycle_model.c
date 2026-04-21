@@ -21,9 +21,10 @@ static float calculateExpectedYawRate (float steerAngle, float wheelBase, float 
 	return (speed / wheelBase) * tanf (steerAngle);
 }
 
-tvOutput_t tvBicycleModel (const tvInput_t* input, const void* configPointer)
+tvOutput_t tvBicycleModel (const tvInput_t* input, const void* configPointer, void* statePointer)
 {
 	const tvBicycleModelConfig_t* config = configPointer;
+	(void) statePointer;
 
 	// Get IMU-based measurements
 

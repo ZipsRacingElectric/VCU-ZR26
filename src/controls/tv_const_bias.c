@@ -1,20 +1,21 @@
 // Header
 #include "tv_const_bias.h"
 
-tvOutput_t tvConstBias (const tvInput_t* input, const void* configPointer)
+tvOutput_t tvConstBias (const tvInput_t* input, const void* configPointer, void* statePointer)
 {
 	const tvConstBiasConfig_t* config = configPointer;
+	(void) statePointer;
 
 	// Driving torque bias
 
-	float drivingRearBias	= config->drivingFrontRearBias;
+	float drivingRearBias	= input->drivingFrBias;
 	float drivingFrontBias	= 1 - drivingRearBias;
 	float drivingLeftBias	= config->drivingLeftRightBias;
 	float drivingRightBias	= 1 - drivingLeftBias;
 
 	// Regen torque bias
 
-	float regenRearBias		= config->regenFrontRearBias;
+	float regenRearBias		= input->regenFrBias;
 	float regenFrontBias	= 1 - regenRearBias;
 	float regenLeftBias		= config->regenLeftRightBias;
 	float regenRightBias	= 1 - regenLeftBias;
