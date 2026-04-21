@@ -147,7 +147,10 @@ THD_FUNCTION (stateThread, arg)
 		palWriteLine (LINE_LED_FAULT, vcuFault);
 
 		// Brake light
-		palWriteLine (LINE_BRAKE_LIGHT_CONTROL, pedals.braking);
+		bool braking = pedals.braking;
+		braking |= sibGetAnalogValueLock (&steeringInputBoard, 0) > 0;
+		braking |= sibGetAnalogValueLock (&steeringInputBoard, 1) > 0;
+		palWriteLine (LINE_BRAKE_LIGHT_CONTROL, braking);
 
 		// Broadcast the sensor input message and debug message
 		transmitSensorInputPercent (&CAND1, STATE_CONTROL_PERIOD);

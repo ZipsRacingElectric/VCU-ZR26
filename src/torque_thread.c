@@ -295,7 +295,6 @@ tvInput_t requestCalculateInput (float deltaTime)
 	float paddleInput0 = sibGetAnalogValueLock (&steeringInputBoard, 0);
 	float paddleInput1 = sibGetAnalogValueLock (&steeringInputBoard, 1);
 	float regenRequest = paddleInput0 > paddleInput1 ? paddleInput0 : paddleInput1;
-	regenRequest *= regenTorqueLimit;
 
 	// Derate based on throttle position (no regen when pedal is depressed)
 	regenRequest = lerp2dSaturated (pedals.appsRequest,
@@ -306,7 +305,9 @@ tvInput_t requestCalculateInput (float deltaTime)
 	{
 		.deltaTime			= deltaTime,
 		.drivingTorqueLimit	= pedals.appsRequest * drivingTorqueLimit,
-		.regenTorqueLimit	= regenRequest,
+		.regenTorqueLimit	= regenRequest * regenTorqueLimit,
+		.drivingFrBias		= drivingFrontRearBias,
+		.regenFrBias		= regenFrontRearBias
 	};
 	return input;
 }
