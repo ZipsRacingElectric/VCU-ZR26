@@ -46,7 +46,6 @@ void torqueThreadSelectAlgorithm (uint8_t index);
  */
 void torqueThreadSetDrivingTorqueLimit (float torque);
 
-// TODO(Barach): This is ignored.
 /**
  * @brief Sets the cumulative regenerative (negative) torque limit.
  * @param torque The limit to set, in Nm.

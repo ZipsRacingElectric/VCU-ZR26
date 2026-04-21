@@ -72,11 +72,6 @@ static tvAlgorithm_t tvAlgorithms [] =
 		.config		= &physicalEepromMap->lsConfig
 	},
 	{
-		// Linear-steering (slalom)
-		.entrypoint	= &tvLinearBias,
-		.config		= &physicalEepromMap->lssConfig
-	},
-	{
 		// Single-tire-fire (left)
 		.entrypoint	= &tvConstBias,
 		.config		= &STF_L_CONFIG
@@ -126,7 +121,7 @@ static float powerLimitPidA = 0;
  * @param deltaTime The amount of time that has passed since the last call to this function.
  * @return The calculated input structure.
  */
-tvInput_t requestCalculateInput (float deltaTime, bool* resetRequest);
+tvInput_t requestCalculateInput (float deltaTime);
 
 /**
  * @brief Executes the selected torque-vectoring algorithm, calculating an amount of torque to request of each inverter.
@@ -189,8 +184,8 @@ THD_FUNCTION (torqueThread, arg)
 		peripheralsSample (timePrevious, timeCurrent);
 
 		// Calculate the torque request and apply power limiting.
-		bool resetRequest = false;
-		tvInput_t input = requestCalculateInput (TORQUE_THREAD_PERIOD_S, &resetRequest);
+		bool resetRequest = physicalEepromMap->amkAutoResetRequest;
+		tvInput_t input = requestCalculateInput (TORQUE_THREAD_PERIOD_S);
 
 		torqueRequest = requestCalculateOutput (&input);
 		bool derating = requestApplyPowerLimit (&torqueRequest, TORQUE_THREAD_PERIOD_S);
@@ -271,7 +266,17 @@ void torqueThreadSetDrivingTorqueLimit (float torque)
 void torqueThreadSetRegenTorqueLimit (float torque)
 {
 	if (torque > AMK_REGENERATIVE_TORQUE_MAX * AMK_COUNT)
+	{
+		regenTorqueLimit = AMK_REGENERATIVE_TORQUE_MAX * AMK_COUNT;
 		return;
+	}
+
+	if (torque < 0)
+	{
+		regenTorqueLimit = 0;
+		return;
+	}
+
 	regenTorqueLimit = torque;
 }
 
@@ -288,52 +293,18 @@ void torqueThreadSetPowerLimitPid (float kp, float ki, float kd, float a)
 	powerLimitPidA		= a;
 }
 
-tvInput_t requestCalculateInput (float deltaTime, bool* resetRequest)
+tvInput_t requestCalculateInput (float deltaTime)
 {
-	float regenRequest = 0.0f;
+	// Regen input
+	float paddleInput0 = sibGetAnalogValueLock (&steeringInputBoard, 0);
+	float paddleInput1 = sibGetAnalogValueLock (&steeringInputBoard, 1);
+	float regenRequest = paddleInput0 > paddleInput1 ? paddleInput0 : paddleInput1;
+	regenRequest *= regenTorqueLimit;
 
-	// // Paddle inputs
-	// *resetRequest = !palReadLine (LINE_BUTTON_2_IN);
-	// if (!palReadLine (LINE_BUTTON_1_IN))
-	// {
-	// 	// Torque Down
-	// 	if (palReadLine (LINE_BUTTON_3_IN))
-	// 	{
-	// 		*button3Held = false;
-	// 	}
-	// 	else if (!*button3Held)
-	// 	{
-	// 		torqueThreadSetDrivingTorqueLimit (drivingTorqueLimit - AMK_DRIVING_TORQUE_MAX * AMK_COUNT / 10.0f);
-	// 		*button3Held = true;
-	// 	}
-
-	// 	// Torque Up
-	// 	if (palReadLine (LINE_BUTTON_5_IN))
-	// 	{
-	// 		*button5Held = false;
-	// 	}
-	// 	else if (!*button5Held)
-	// 	{
-	// 		torqueThreadSetDrivingTorqueLimit (drivingTorqueLimit + AMK_DRIVING_TORQUE_MAX * AMK_COUNT / 10.0f);
-	// 		*button5Held = true;
-	// 	}
-	// }
-	// else
-	// {
-	// 	// Regen input
-	// 	if (!palReadLine (LINE_BUTTON_3_IN) || !palReadLine (LINE_BUTTON_5_IN))
-	// 	{
-	// 		if (!palReadLine (LINE_BUTTON_3_IN) && !palReadLine (LINE_BUTTON_5_IN))
-	// 			regenRequest = regenTorqueLimit * physicalEepromMap->regenHardRequest;
-	// 		else
-	// 			regenRequest = regenTorqueLimit * physicalEepromMap->regenLightRequest;
-
-	// 		// Derate based on throttle position (no regen when pedal is depressed)
-	// 		regenRequest = lerp2dSaturated (pedals.appsRequest,
-	// 			physicalEepromMap->regenDeratingThrottleStart, regenRequest,
-	// 			physicalEepromMap->regenDeratingThrottleEnd, 0);
-	// 	}
-	// }
+	// Derate based on throttle position (no regen when pedal is depressed)
+	regenRequest = lerp2dSaturated (pedals.appsRequest,
+		physicalEepromMap->regenDeratingThrottleStart, regenRequest,
+		physicalEepromMap->regenDeratingThrottleEnd, 0);
 
 	tvInput_t input =
 	{

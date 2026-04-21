@@ -10,9 +10,12 @@
 //   This algorithm is a simple open-loop controller, meant to roughly emulate the behavior of a differential without the
 //   complexity of negative feedback.
 //
+//   Driving torque is distributed with a constant front-to-rear bias. Between the begining and ending steering angle, left-to-
+//   right bias is linearly interpolated between 50% and the ending ratio.
+//   Regen torque is distributed with a constant front-to-rear bias. No left-to-right biasing is used for regen torque.
+//
 // Sensor Requirements:
 //   - Steering-angle-sensor
-//   - Motor speed
 
 // Includes -------------------------------------------------------------------------------------------------------------------
 
@@ -23,14 +26,10 @@
 
 typedef struct
 {
-	/// @brief The motor speed at which the front-to-rear bias starts shifting from the beginning value.
-	float motorSpeedBiasBegin;
-	/// @brief The motor speed at which the front-to-rear bias stops shifting to the end value.
-	float motorSpeedBiasEnd;
-	/// @brief The front-to-rear bias at the beginning motor speed.
-	float frontRearBiasBegin;
-	/// @brief The front-to-rear bias at the ending motor speed.
-	float frontRearBiasEnd;
+	/// @brief The front-to-rear bias for driving torque.
+	float drivingFrontRearBias;
+	/// @brief The front-to-rear bias for regen torque.
+	float regenFrontRearBias;
 
 	/// @brief The steering angle at which the left-to-right bias starts shifting from 50/50.
 	float steeringAngleBiasBegin;

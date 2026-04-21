@@ -142,8 +142,7 @@ THD_FUNCTION (stateThread, arg)
 		// VCU fault light
 		vcuFault =
 			!torquePlausible ||
-			vehicleState == VEHICLE_STATE_FAILED ||
-			amksState == AMK_STATE_ERROR;
+			vehicleState == VEHICLE_STATE_FAILED;
 
 		palWriteLine (LINE_LED_FAULT, vcuFault);
 
