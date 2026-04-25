@@ -57,6 +57,10 @@ THD_FUNCTION (stateThread, arg)
 		if (amksState == AMK_STATE_INVALID || physicalEeprom.state != MC24LC32_STATE_READY)
 			vehicleState = VEHICLE_STATE_FAILED;
 
+		// If the AMK communication has failed and the Formula Hybrid + Electric watchdog is enabled, open the shutdown loop.
+		// See FH+E Rules, EV 7.1.1.10 for details.
+		palWriteLine (LINE_SHUTDOWN_CONTROL, !physicalEepromMap->watchdogEnabled || amksState != AMK_STATE_INVALID);
+
 		canNodeLock ((canNode_t*) &bms);
 		bool highVoltageEnabled = bms.state == CAN_NODE_VALID && bms.positiveIrClosed;
 		canNodeUnlock ((canNode_t*) &bms);

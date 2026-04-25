@@ -58,6 +58,8 @@ typedef struct
 
 	// Linear-steering TV config
 	tvLinearBiasConfig_t lsConfig;				// 0x0088
+
+	bool watchdogEnabled;						// 0x0094
 } eepromMap_t;
 
 // Functions ------------------------------------------------------------------------------------------------------------------
