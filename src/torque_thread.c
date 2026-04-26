@@ -22,13 +22,15 @@
 
 #define CUMULATIVE_TORQUE_TOLERANCE		0.05f
 
-#define SIB_TORQUE_UP_INDEX				2
-#define SIB_TORQUE_DOWN_INDEX			3
-#define SIB_TORQUE_STEP					3.0f
+#define SIB_TORQUE_LIMIT_INDEX			2
+#define SIB_REGEN_LIMIT_INDEX			0
+#define SIB_REGEN_BIAS_INDEX			1
 
-#define SIB_DRIVING_FR_BIAS_UP_INDEX	5
-#define SIB_DRIVING_FR_BIAS_DOWN_INDEX	6
-#define SIB_DRIVING_FR_BIAS_STEP		0.05
+#define SIB_UP_INDEX					6
+#define SIB_DOWN_INDEX					5
+
+#define SIB_TORQUE_STEP					3.0f
+#define SIB_BIAS_STEP					0.05
 
 // Global Data ----------------------------------------------------------------------------------------------------------------
 
@@ -144,17 +146,39 @@ THD_FUNCTION (torqueThread, arg)
 		chThdSleepUntilWindowed (timeCurrent, timeNext);
 		timeCurrent = chVTGetSystemTimeX ();
 
-		// Torque up / down buttons
-		if (sibGetButtonDownLock (&steeringInputBoard, SIB_TORQUE_UP_INDEX))
-			torqueThreadSetDrivingTorqueLimit (drivingTorqueLimit + SIB_TORQUE_STEP);
-		if (sibGetButtonDownLock (&steeringInputBoard, SIB_TORQUE_DOWN_INDEX))
-			torqueThreadSetDrivingTorqueLimit (drivingTorqueLimit - SIB_TORQUE_STEP);
-
-		// Driving FR bias up / down buttons
-		if (sibGetButtonDownLock (&steeringInputBoard, SIB_DRIVING_FR_BIAS_UP_INDEX))
-			torqueThreadSetDrivingFrBias (drivingFrontRearBias + SIB_DRIVING_FR_BIAS_STEP);
-		if (sibGetButtonDownLock (&steeringInputBoard, SIB_DRIVING_FR_BIAS_DOWN_INDEX))
-			torqueThreadSetDrivingFrBias (drivingFrontRearBias - SIB_DRIVING_FR_BIAS_STEP);
+		// Steering input board controls
+		if (sibGetButtonHeldLock (&steeringInputBoard, SIB_TORQUE_LIMIT_INDEX))
+		{
+			// Adjust driving torque limit
+			if (sibGetButtonDownLock (&steeringInputBoard, SIB_UP_INDEX))
+				torqueThreadSetDrivingTorqueLimit (drivingTorqueLimit + SIB_TORQUE_STEP);
+			if (sibGetButtonDownLock (&steeringInputBoard, SIB_DOWN_INDEX))
+				torqueThreadSetDrivingTorqueLimit (drivingTorqueLimit - SIB_TORQUE_STEP);
+		}
+		else if (sibGetButtonHeldLock (&steeringInputBoard, SIB_REGEN_LIMIT_INDEX))
+		{
+			// Adjust regen torque limit
+			if (sibGetButtonDownLock (&steeringInputBoard, SIB_UP_INDEX))
+				torqueThreadSetRegenTorqueLimit (regenTorqueLimit + SIB_TORQUE_STEP);
+			if (sibGetButtonDownLock (&steeringInputBoard, SIB_DOWN_INDEX))
+				torqueThreadSetRegenTorqueLimit (regenTorqueLimit - SIB_TORQUE_STEP);
+		}
+		else if (sibGetButtonHeldLock (&steeringInputBoard, SIB_REGEN_BIAS_INDEX))
+		{
+			// Adjust regen F/R bias
+			if (sibGetButtonDownLock (&steeringInputBoard, SIB_UP_INDEX))
+				torqueThreadSetRegenFrBias (regenFrontRearBias - SIB_BIAS_STEP);
+			if (sibGetButtonDownLock (&steeringInputBoard, SIB_DOWN_INDEX))
+				torqueThreadSetRegenFrBias (regenFrontRearBias + SIB_BIAS_STEP);
+		}
+		else
+		{
+			// Adjust driving F/R bias
+			if (sibGetButtonDownLock (&steeringInputBoard, SIB_UP_INDEX))
+				torqueThreadSetDrivingFrBias (drivingFrontRearBias - SIB_BIAS_STEP);
+			if (sibGetButtonDownLock (&steeringInputBoard, SIB_DOWN_INDEX))
+				torqueThreadSetDrivingFrBias (drivingFrontRearBias + SIB_BIAS_STEP);
+		}
 
 		// Sample the sensor inputs.
 		peripheralsSample (timePrevious, timeCurrent);
