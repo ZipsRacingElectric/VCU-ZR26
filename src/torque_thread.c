@@ -3,10 +3,13 @@
 
 // Includes
 #include "can.h"
+#include "can/transmit.h"
+#include "controls/regen.h"
 #include "controls/pid_controller.h"
 #include "controls/torque_vectoring.h"
 #include "controls/tv_const_bias.h"
 #include "controls/tv_linear_bias.h"
+#include "controls/tv_bicycle_model_tucker.h"
 #include "peripherals.h"
 #include "state_thread.h"
 #include "controls/lerp.h"
@@ -42,6 +45,17 @@ float regenFrontRearBias = 0.5f;
 
 static uint8_t algoritmIndex = 0;
 
+static tvBicycleModelTuckerState_t tvBicycleModelTuckerState =
+{
+	.pid = { 0 },
+	.xdPrime = 0
+};
+
+static regenState_t regenRlState = { 0 };
+static regenState_t regenRrState = { 0 };
+static regenState_t regenFlState = { 0 };
+static regenState_t regenFrState = { 0 };
+
 /// @brief The array of selectable torque-vectoring algorithms.
 #define TV_ALGORITHM_COUNT (sizeof (tvAlgorithms) / sizeof (tvAlgorithm_t))
 static tvAlgorithm_t tvAlgorithms [] =
@@ -58,6 +72,12 @@ static tvAlgorithm_t tvAlgorithms [] =
 		.config		= &physicalEepromMap->lsConfig,
 		.state		= NULL
 	},
+	{
+		// Bicycle model
+		.entrypoint	= &tvBicycleModelTucker,
+		.config		= &physicalEepromMap->bicycleConfig,
+		.state		= &tvBicycleModelTuckerState
+	}
 };
 
 /**
@@ -111,15 +131,6 @@ tvOutput_t requestCalculateOutput (tvInput_t* input);
  * @return True if the request was de-rated, false otherwise.
  */
 bool requestApplyPowerLimit (tvOutput_t* request, float deltaTime);
-
-/**
- * @brief Applies regen limiting to a torque amount. De-rating is applied when the motor speed is below a certain value,
- * as negative torque can cause the motors to spin in reverse.
- * @param torque The torque to limit.
- * @param amk The inverter the torque is to be requested of.
- * @return True if the torque was de-rated, false otherwise.
- */
-bool torqueApplyRegenLimit (float* torque, amkInverter_t* amk);
 
 /**
  * @brief Checks the validity of a torque request.
@@ -195,17 +206,19 @@ THD_FUNCTION (torqueThread, arg)
 		{
 			if (plausible)
 			{
-				// Torque request message.
-				derating &= torqueApplyRegenLimit (&torqueRequest.torqueRl, &amkRl);
+				// Send the torque request messages. Note the regen derating and torque request messages must be interlaced
+				// like this, as regen derating is quite sensitive to latency.
+
+				derating &= regenDerate (&torqueRequest.torqueRl, &amkRl, &regenRlState);
 				amkSendTorqueRequest (&amkRl, torqueRequest.torqueRl, AMK_DRIVING_TORQUE_MAX, -AMK_REGENERATIVE_TORQUE_MAX, resetRequest, TORQUE_THREAD_CAN_MESSAGE_TIMEOUT);
 
-				derating &= torqueApplyRegenLimit (&torqueRequest.torqueRr, &amkRr);
+				derating &= regenDerate (&torqueRequest.torqueRr, &amkRr, &regenRrState);
 				amkSendTorqueRequest (&amkRr, torqueRequest.torqueRr, AMK_DRIVING_TORQUE_MAX, -AMK_REGENERATIVE_TORQUE_MAX, resetRequest, TORQUE_THREAD_CAN_MESSAGE_TIMEOUT);
 
-				derating &= torqueApplyRegenLimit (&torqueRequest.torqueFl, &amkFl);
+				derating &= regenDerate (&torqueRequest.torqueFl, &amkFl, &regenFlState);
 				amkSendTorqueRequest (&amkFl, torqueRequest.torqueFl, AMK_DRIVING_TORQUE_MAX, -AMK_REGENERATIVE_TORQUE_MAX, resetRequest, TORQUE_THREAD_CAN_MESSAGE_TIMEOUT);
 
-				derating &= torqueApplyRegenLimit (&torqueRequest.torqueFr, &amkFr);
+				derating &= regenDerate (&torqueRequest.torqueFr, &amkFr, &regenFrState);
 				amkSendTorqueRequest (&amkFr, torqueRequest.torqueFr, AMK_DRIVING_TORQUE_MAX, -AMK_REGENERATIVE_TORQUE_MAX, resetRequest, TORQUE_THREAD_CAN_MESSAGE_TIMEOUT);
 			}
 			else
@@ -228,6 +241,9 @@ THD_FUNCTION (torqueThread, arg)
 
 		// Nofify the state thread of the current plausibility.
 		stateThreadSetTorquePlausibility (plausible, derating);
+
+		// Transmit the non-derated torque message (used for debugging).
+		transmitNonderatedTorqueMessage (&CAND1, TORQUE_THREAD_CAN_MESSAGE_TIMEOUT);
 	}
 }
 
@@ -360,30 +376,6 @@ bool requestApplyPowerLimit (tvOutput_t* output, float deltaTime)
 
 	// If reduction ratio is not 1, derating is occurring.
 	return (1.0f - torqueReductionRatio < FLT_EPSILON);
-}
-
-bool torqueApplyRegenLimit (float* torque, amkInverter_t* amk)
-{
-	// Negative torque means regen
-	if (*torque < 0)
-	{
-		// If the speed is below the end derating speed, clamp to 0.
-		if (amk->actualSpeed < physicalEepromMap->regenDeratingSpeedEnd)
-		{
-			*torque = 0;
-			return true;
-		}
-		// If the speed is between the start and end derating speeds, lerp between them.
-		else if (amk->actualSpeed < physicalEepromMap->regenDeratingSpeedStart)
-		{
-			*torque = lerp2d (amk->actualSpeed,
-				physicalEepromMap->regenDeratingSpeedEnd, 0,
-				physicalEepromMap->regenDeratingSpeedStart, *torque);
-			return true;
-		}
-	}
-
-	return false;
 }
 
 bool requestValidate (tvOutput_t* output, tvInput_t* input)

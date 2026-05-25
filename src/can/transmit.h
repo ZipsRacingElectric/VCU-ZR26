@@ -47,4 +47,23 @@ msg_t transmitTemperaturesMessage (CANDriver* driver, sysinterval_t timeout);
  */
 msg_t transmitConfigMessage (CANDriver* driver, sysinterval_t timeout);
 
+/**
+ * @brief Transmits the non-derated torque message.
+ * @param driver The CAN driver to use.
+ * @param timeout The interval to timeout after.
+ * @return The result of the CAN operation.
+ */
+msg_t transmitNonderatedTorqueMessage (CANDriver* driver, sysinterval_t timeout);
+
+/**
+ * @brief Transmits the optional yaw-rate message. This is only used by specific torque-vectoring algorithms.
+ * @param driver The CAN driver to use.
+ * @param yawRateActual The actual yaw-rate of the vehicle, in degrees per second.
+ * @param yawRateIdeal The ideal yaw-rate of the vehicle, in degrees per second.
+ * @param targetYawMoment The target yaw-moment of the vehicle, in Nm. If not used by the algorithm, use 0.
+ * @param timeout The interval to timeout after.
+ * @return The result of the CAN operation.
+ */
+msg_t transmitYawRateMessage (CANDriver* driver, float yawRateActual, float yawRateIdeal, float targetYawMoment, sysinterval_t timeout);
+
 #endif // TRANSMIT_H

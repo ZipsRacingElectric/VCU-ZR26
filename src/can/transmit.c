@@ -22,17 +22,27 @@
 #define VOLTAGE_INVERSE_FACTOR		(255.0f / 24.0f)
 #define VOLTAGE_TO_WORD(voltage)	(uint8_t) ((voltage - VOLTAGE_OFFSET) * VOLTAGE_INVERSE_FACTOR)
 
-// Torque Values
-#define TORQUE_INVERSE_FACTOR		(255.0f / 100.0f)
-#define TORQUE_TO_WORD(torque)		(uint8_t) ((torque) * TORQUE_INVERSE_FACTOR)
+// Torque Values (Nm)
+#define TORQUE_8_INVERSE_FACTOR		(255.0f / 100.0f)
+#define TORQUE_8_TO_WORD(torque)	(uint8_t) ((torque) * TORQUE_8_INVERSE_FACTOR)
+#define TORQUE_16_INVERSE_FACTOR	(1.0f / 0.0098f)
+#define TORQUE_16_TO_WORD(torque)	(int16_t) ((torque) * TORQUE_16_INVERSE_FACTOR)
 
-// Temperature Values
+// Temperature Values (C)
 #define TEMPERATURE_INVERSE_FACTOR	10.0f
 #define TEMPERATURE_TO_WORD(temp)	(uint16_t) ((temp) * TEMPERATURE_INVERSE_FACTOR)
 
 // Ratio Values
 #define RATIO_INVERSE_FACTOR		255.0f
 #define RATIO_TO_WORD(ratio)		(uint8_t) ((ratio) * RATIO_INVERSE_FACTOR)
+
+// Yaw-rate Values (deg/s)
+#define YAW_RATE_INVERSE_FACTOR		(1 / 0.005f)
+#define YAW_RATE_TO_WORD(yawRate)	(int16_t) ((yawRate) * YAW_RATE_INVERSE_FACTOR)
+
+// Moment Values (Nm)
+#define MOMENT_INVERSE_FACTOR		(1 / 0.1f)
+#define MOMENT_TO_WORD(moment)		(int16_t) ((moment) * MOMENT_INVERSE_FACTOR)
 
 // Message IDs ----------------------------------------------------------------------------------------------------------------
 
@@ -41,6 +51,8 @@
 #define DEBUG_MESSAGE_ID				0x651
 #define TEMPERATURE_MESSAGE_ID			0x7A0
 #define CONFIG_MESSAGE_ID				0x7A2
+#define NONDERATED_TORQUE_MESSAGE_ID	0x210
+#define YAW_MESSAGE_ID					0x211
 
 // Message Packing ------------------------------------------------------------------------------------------------------------
 
@@ -170,11 +182,52 @@ msg_t transmitConfigMessage (CANDriver* driver, sysinterval_t timeout)
 		.SID	= CONFIG_MESSAGE_ID,
 		.data8	=
 		{
-			TORQUE_TO_WORD (drivingTorqueLimit),
-			TORQUE_TO_WORD (regenTorqueLimit),
+			TORQUE_8_TO_WORD (drivingTorqueLimit),
+			TORQUE_8_TO_WORD (regenTorqueLimit),
 			physicalEepromMap->torqueAlgoritmIndex,
 			RATIO_TO_WORD (drivingFrontRearBias),
 			RATIO_TO_WORD (regenFrontRearBias)
+		}
+	};
+
+	return canTransmitTimeout (driver, CAN_ANY_MAILBOX, &frame, timeout);
+}
+
+msg_t transmitNonderatedTorqueMessage (CANDriver* driver, sysinterval_t timeout)
+{
+	// See DBC file for details.
+
+	CANTxFrame frame =
+	{
+		.DLC	= 8,
+		.IDE	= CAN_IDE_STD,
+		.SID	= NONDERATED_TORQUE_MESSAGE_ID,
+		.data16	=
+		{
+			TORQUE_16_TO_WORD (torqueRequest.torqueRl),
+			TORQUE_16_TO_WORD (torqueRequest.torqueRr),
+			TORQUE_16_TO_WORD (torqueRequest.torqueFl),
+			TORQUE_16_TO_WORD (torqueRequest.torqueFr)
+		}
+	};
+
+	return canTransmitTimeout (driver, CAN_ANY_MAILBOX, &frame, timeout);
+}
+
+msg_t transmitYawRateMessage (CANDriver* driver, float yawRateActual, float yawRateIdeal, float targetYawMoment, sysinterval_t timeout)
+{
+	// See DBC file for details.
+
+	CANTxFrame frame =
+	{
+		.DLC	= 6,
+		.IDE	= CAN_IDE_STD,
+		.SID	= YAW_MESSAGE_ID,
+		.data16	=
+		{
+			YAW_RATE_TO_WORD (yawRateActual),
+			YAW_RATE_TO_WORD (yawRateIdeal),
+			MOMENT_TO_WORD (targetYawMoment)
 		}
 	};
 
