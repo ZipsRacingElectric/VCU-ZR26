@@ -1,5 +1,5 @@
 // Header
-#include "tv_bicycle_model.h"
+#include "tv_bicycle_model_zifzal.h"
 
 // Includes
 #include "peripherals.h"
@@ -21,9 +21,9 @@ static float calculateExpectedYawRate (float steerAngle, float wheelBase, float 
 	return (speed / wheelBase) * tanf (steerAngle);
 }
 
-tvOutput_t tvBicycleModel (const tvInput_t* input, const void* configPointer, void* statePointer)
+tvOutput_t tvBicycleModelZifzal (const tvInput_t* input, const void* configPointer, void* statePointer)
 {
-	const tvBicycleModelConfig_t* config = configPointer;
+	const tvBicycleModelZifzalConfig_t* config = configPointer;
 	(void) statePointer;
 
 	// Get IMU-based measurements

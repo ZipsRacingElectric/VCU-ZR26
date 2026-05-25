@@ -15,23 +15,24 @@ COMMONDIR	:= ./common
 ALLINC += src
 
 # Source files
-CSRC =	$(ALLCSRC)							\
-		src/main.c							\
-											\
-		src/peripherals.c					\
-		src/peripherals/eeprom_map.c		\
-		src/peripherals/pedals.c			\
-		src/peripherals/steering_angle.c	\
-											\
-		src/can.c							\
-		src/can/receive.c					\
-		src/can/transmit.c					\
-											\
-		src/torque_thread.c					\
-		src/controls/tv_const_bias.c		\
-		src/controls/tv_linear_bias.c		\
-		src/controls/tv_bicycle_model.c		\
-											\
+CSRC =	$(ALLCSRC)								\
+		src/main.c								\
+												\
+		src/peripherals.c						\
+		src/peripherals/eeprom_map.c			\
+		src/peripherals/pedals.c				\
+		src/peripherals/steering_angle.c		\
+												\
+		src/can.c								\
+		src/can/receive.c						\
+		src/can/transmit.c						\
+												\
+		src/torque_thread.c						\
+		src/controls/regen.c					\
+		src/controls/tv_const_bias.c			\
+		src/controls/tv_linear_bias.c			\
+		src/controls/tv_bicycle_model_tucker.c	\
+												\
 		src/state_thread.c
 
 # Common library includes

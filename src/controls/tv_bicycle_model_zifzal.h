@@ -15,9 +15,9 @@ typedef struct
 	float gain;
 	/// @brief The front-to-rear bias of the base torque request.
 	float biasFr;
-} tvBicycleModelConfig_t;
+} tvBicycleModelZifzalConfig_t;
 
 /// @brief Entrypoint to the torque vectoring algorithm.
-tvOutput_t tvBicycleModel (const tvInput_t* input, const void* configPointer, void* statePointer);
+tvOutput_t tvBicycleModelZifzal (const tvInput_t* input, const void* configPointer, void* statePointer);
 
 #endif // TV_BICYCLE_MODEL_H
