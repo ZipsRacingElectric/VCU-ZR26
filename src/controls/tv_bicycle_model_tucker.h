@@ -26,7 +26,6 @@ typedef struct
 	float ki;
 	float kd;
 	float ka;
-	float frontRearMomentBias;
 } tvBicycleModelTuckerConfig_t;
 
 typedef struct

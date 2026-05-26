@@ -83,47 +83,59 @@ tvOutput_t tvBicycleModelTucker (const tvInput_t* input, const void* configPoint
 	float wheelFlAngle = steeringAngleToFlWheelAngle (steeringAngle, physicalEepromMap->steeringRatio);
 	float wheelFrAngle = steeringAngleToFrWheelAngle (steeringAngle, physicalEepromMap->steeringRatio);
 
+	// TODO(Barach): These are quite slow, validate the control frequency is being achieved.
+	volatile float yawTransferRl = motorRlYawMomentTransfer (physicalEepromMap->trackWidthRear, physicalEepromMap->gearRatio,
+		physicalEepromMap->wheelRadius);
+	volatile float yawTransferRr = motorRrYawMomentTransfer (physicalEepromMap->trackWidthRear, physicalEepromMap->gearRatio,
+		physicalEepromMap->wheelRadius);
+	volatile float yawTransferFl = motorFlYawMomentTransfer (physicalEepromMap->wheelBase, physicalEepromMap->weightFrontRearBias,
+		physicalEepromMap->trackWidthFront, physicalEepromMap->gearRatio, physicalEepromMap->wheelRadius, wheelFlAngle);
+	volatile float yawTransferFr = motorFrYawMomentTransfer (physicalEepromMap->wheelBase, physicalEepromMap->weightFrontRearBias,
+		physicalEepromMap->trackWidthFront, physicalEepromMap->gearRatio, physicalEepromMap->wheelRadius, wheelFrAngle);
+
+	volatile float torqueRr =      input->drivingFrBias  * 0.5f * input->drivingTorqueLimit;
+	volatile float torqueFl = (1 - input->drivingFrBias) * 0.5f * input->drivingTorqueLimit;
+
+	volatile float yawMomentMin =
+		  torqueRr * yawTransferRl
+		+ torqueFl * yawTransferFr
+		+ (-AMK_REGENERATIVE_TORQUE_MAX) * yawTransferRl
+		+ (AMK_DRIVING_TORQUE_MAX) * yawTransferFr;
+
+	volatile float yawMomentMax =
+		  torqueRr * yawTransferRl
+		+ torqueFl * yawTransferFr
+		+ AMK_DRIVING_TORQUE_MAX * yawTransferRl
+		+ (-AMK_REGENERATIVE_TORQUE_MAX) * yawTransferFr;
+
 	// Compute ideal yaw rate from steering angle and vehicle speed.
-	float yawRateIdeal = calculateYawRateIdeal (steeringAngle, vehicleSpeed);
+	volatile float yawRateIdeal = calculateYawRateIdeal (steeringAngle, vehicleSpeed);
 
 	// Compute the yaw acceleration based on a PID controller
 	state->pid.ySetPoint = yawRateIdeal;
 	pidCalculate (&state->pid, yawRateActual, input->deltaTime);
-	float yawAcceleration = pidFilterDerivative (&state->pid, config->ka, &state->xdPrime);
-	// TODO(Barach): do we need antiwindup? saturation is likely not constant.
-	// TODO(Barach): Yes, but it is complicated...
-	// volatile float yawAcceleration = pidApplyAntiWindup (&state->pid, 0, AMK_DRIVING_TORQUE_MAX);
+	pidFilterDerivative (&state->pid, config->ka, &state->xdPrime);
+	volatile float yawAcceleration = pidApplyAntiWindup (&state->pid,
+		yawMomentMin / physicalEepromMap->yawMomentOfInertia,
+		yawMomentMax / physicalEepromMap->yawMomentOfInertia);
+
 	volatile float yawMoment = yawAcceleration * physicalEepromMap->yawMomentOfInertia;
+
+	volatile float yawMomentRequired = yawMoment - torqueRr * yawTransferRr - torqueFl * yawTransferFl;
 
 	// Transmit the yaw-rate message
 	transmitYawRateMessage (&CAND1, yawRateActual, yawRateIdeal, yawMoment, TIME_MS2I (10));
 
-	volatile float yawMomentRear  = yawMoment * config->frontRearMomentBias;
-	volatile float yawMomentFront = yawMoment * (1 - config->frontRearMomentBias);
+	// Compute the torques that satisfy both the torque limit and required yaw moment.
+	float torqueRl =  (yawMomentRequired - 0.5f * input->drivingTorqueLimit * yawTransferFr) / (yawTransferRl - yawTransferFr);
+	float torqueFr = -(yawMomentRequired - 0.5f * input->drivingTorqueLimit * yawTransferRl) / (yawTransferRl - yawTransferFr);
 
-	volatile float torqueLimitRear  = input->drivingTorqueLimit * input->drivingFrBias;
-	volatile float torqueLimitFront = input->drivingTorqueLimit * (1 - input->drivingFrBias);
-
-	volatile float yawTranfserRl = motorRlYawMomentTransfer (physicalEepromMap->trackWidthRear, physicalEepromMap->gearRatio,
-		physicalEepromMap->wheelRadius);
-	volatile float yawTranfserRr = motorRrYawMomentTransfer (physicalEepromMap->trackWidthRear, physicalEepromMap->gearRatio,
-		physicalEepromMap->wheelRadius);
-	volatile float yawTranfserFl = motorFlYawMomentTransfer (physicalEepromMap->wheelBase, physicalEepromMap->frontRearWeightBias,
-		physicalEepromMap->trackWidthFront, physicalEepromMap->gearRatio, physicalEepromMap->wheelRadius, wheelFlAngle);
-	volatile float yawTranfserFr = motorFrYawMomentTransfer (physicalEepromMap->wheelBase, physicalEepromMap->frontRearWeightBias,
-		physicalEepromMap->trackWidthFront, physicalEepromMap->gearRatio, physicalEepromMap->wheelRadius, wheelFrAngle);
-
-	volatile float yawTransferDeltaRear  = yawTranfserRl - yawTranfserRr;
-	volatile float yawTransferDeltaFront = yawTranfserFl - yawTranfserFr;
-
-	// Compute the compensated output
 	return (tvOutput_t)
 	{
 		.valid = valid,
-		// Note this is not a mistake, the right-hand yaw transfer is used to calculate the left-hand torque and vice-versa.
-		.torqueRl = ( yawMomentRear  - yawTranfserRr * torqueLimitRear)  / yawTransferDeltaRear,
-		.torqueRr = (-yawMomentRear  + yawTranfserRl * torqueLimitRear)  / yawTransferDeltaRear,
-		.torqueFl = ( yawMomentFront - yawTranfserFr * torqueLimitFront) / yawTransferDeltaFront,
-		.torqueFr = (-yawMomentFront + yawTranfserFl * torqueLimitFront) / yawTransferDeltaFront,
+		.torqueRl = torqueRl,
+		.torqueRr = torqueRr,
+		.torqueFl = torqueFl,
+		.torqueFr = torqueFr,
 	};
 }
