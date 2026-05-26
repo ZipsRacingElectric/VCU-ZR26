@@ -3,7 +3,6 @@
 
 // Includes
 #include "peripherals.h"
-#include "can.h"
 #include "can/transmit.h"
 #include "controls/lerp.h"
 #include "controls/vehicle_dynamics.h"
@@ -33,6 +32,8 @@ static const float YAW_LOOKUP_TABLE [VEHICLE_SPEED_WIDTH][STEERING_ANGLE_WIDTH] 
 	{ 0,  4,  8, 12},
 	{ 0,  8, 16, 24},
 };
+
+// Functions ------------------------------------------------------------------------------------------------------------------
 
 static inline void calculateYawTransfers (float* yawTransferRearOuter, float* yawTransferRearInner,
 	float* yawTransferFrontOuter, float* yawTransferFrontInner, float steeringAngle, bool rightHandSteering)
@@ -75,6 +76,8 @@ static inline float calculateYawRateIdeal (float steeringAngle, float vehicleSpe
 	// If we are mirroring the table, negate the yaw rate.
 	return mirror ? -yawRateIdeal : yawRateIdeal;
 }
+
+// Entrypoint -----------------------------------------------------------------------------------------------------------------
 
 tvOutput_t tvBicycleModelTucker (const tvInput_t* input, const void* configPointer, void* statePointer)
 {
