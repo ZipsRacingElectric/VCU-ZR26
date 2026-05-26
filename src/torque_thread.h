@@ -20,20 +20,24 @@
 
 // Global Data ----------------------------------------------------------------------------------------------------------------
 
-/// @brief The last calculated torque request. Only used for debugging, do not modify.
-extern tvOutput_t nonDeratedOutput;
+/// @brief The index of the selected torque vectoring algorithm. Do not modify.
+extern uint8_t torqueAlgorithmIndex;
 
-/// @brief The cumulative amount of driving (positive) torque that can be distributed across all motors.
+/// @brief The cumulative amount of driving (positive) torque that can be distributed across all motors. Do not modify.
 extern float drivingTorqueLimit;
 
-/// @brief The cumulative amount of regenerative (negative) torque that can be distributed across all motors.
+/// @brief The cumulative amount of regenerative (negative) torque that can be distributed across all motors. Do not modify.
 extern float regenTorqueLimit;
 
-/// @brief The front-to-rear bias for distributing driving torque. Only used by certain torque vectoring algorithms.
+/// @brief The front-to-rear bias for distributing driving torque. Only used by certain torque vectoring algorithms. Do not
+/// modify.
 extern float drivingFrontRearBias;
 
-/// @brief The front-to-rear bias for distributing regen torque. Only used by certain torque vectoring algorithms.
+/// @brief The front-to-rear bias for distributing regen torque. Only used by certain torque vectoring algorithms. Do not modify.
 extern float regenFrontRearBias;
+
+/// @brief The last calculated torque request, without derating. Do not modify.
+extern tvOutput_t torqueRequestNonDerated;
 
 // Functions ------------------------------------------------------------------------------------------------------------------
 
@@ -56,20 +60,26 @@ void torqueThreadSelectAlgorithm (uint8_t index);
 void torqueThreadSetDrivingTorqueLimit (float torque);
 
 /**
+ * @brief Sets the driving front-to-rear bias.
+ * @param bias The front-to-rear bias to set.
+ */
+void torqueThreadSetDrivingFrBias (float bias);
+
+/**
+ * @brief Sets the regen front-to-rear bias.
+ * @param bias The front-to-rear bias to set.
+ */
+void torqueThreadSetRegenFrBias (float bias);
+
+/**
  * @brief Sets the cumulative regenerative (negative) torque limit.
  * @param torque The limit to set, in Nm. Should be negative, but positive values will be negated and accepted.
  */
 void torqueThreadSetRegenTorqueLimit (float torque);
 
 /**
- * @brief Configures the PID coefficients of the power limiter.
+ * @brief Updates the PID coefficients of the power limiter based on the EEPROM values.
  */
 void torqueThreadUpdatePowerLimiter (void);
-
-/// @brief Sets the driving front-to-rear bias.
-void torqueThreadSetDrivingFrBias (float bias);
-
-/// @brief Sets the regen front-to-rear bias.
-void torqueThreadSetRegenFrBias (float bias);
 
 #endif // TORQUE_THREAD_H

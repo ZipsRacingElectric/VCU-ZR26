@@ -6,7 +6,15 @@
 #include "controls/lerp.h"
 #include "controls/vehicle_dynamics.h"
 
-float regenLimit (float motorLimit, amkInverter_t* amk, regenState_t* state)
+float regenDerateRequest (float regenRequest, float throttleRequest)
+{
+	// Use linear interplation (with saturation) to scale the request down.
+	return lerp2dSaturated (throttleRequest,
+		physicalEepromMap->regenDeratingThrottleLow, regenRequest,
+		physicalEepromMap->regenDeratingThrottleHigh, 0);
+}
+
+float regenDerateLimit (float motorLimit, amkInverter_t* amk, regenState_t* state)
 {
 	// Get the motor speed
 	canNodeLock ((canNode_t*) amk);

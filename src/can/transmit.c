@@ -184,7 +184,7 @@ msg_t transmitConfigMessage (CANDriver* driver, sysinterval_t timeout)
 		{
 			TORQUE_8_TO_WORD (drivingTorqueLimit),
 			TORQUE_8_TO_WORD (regenTorqueLimit),
-			physicalEepromMap->torqueAlgoritmIndex,
+			torqueAlgorithmIndex,
 			RATIO_TO_WORD (drivingFrontRearBias),
 			RATIO_TO_WORD (regenFrontRearBias)
 		}

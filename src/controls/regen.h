@@ -24,7 +24,16 @@ typedef struct
 // Functions ------------------------------------------------------------------------------------------------------------------
 
 /**
- * @brief TODO(Barach). This is required for 2 main reasons:
+ * @brief Derates the requested amount of regen based on the throttle request. This is required, as regen should not be requestable
+ * unless no throttle is applied.
+ * @param regenRequest The requested amount of regen.
+ * @param appsRequest The throttle request.
+ * @return The derated regen request.
+ */
+float regenDerateRequest (float regenRequest, float throttleRequest);
+
+/**
+ * @brief Derates the maximum amount of regen a motor may request. This is required for 2 main reasons:
  * - The vehicle cannot use regen below 5 km/h by the FSAE rules.
  * - Wheels that lock up due to regen cannot be allowed to spin in reverse.
  * @param motorLimit The maximum amount of torque requestable of the motor, should be negative.
@@ -33,6 +42,6 @@ typedef struct
  * all 0's.
  * @return The regen limit that should be enforced. Always negative.
  */
-float regenLimit (float motorLimit, amkInverter_t* amk, regenState_t* state);
+float regenDerateLimit (float motorLimit, amkInverter_t* amk, regenState_t* state);
 
 #endif // REGEN_H

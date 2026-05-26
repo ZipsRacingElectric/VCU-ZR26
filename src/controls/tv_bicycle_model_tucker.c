@@ -53,13 +53,15 @@ static float calculateYawRateIdeal (float steeringAngle, float vehicleSpeed)
 
 tvOutput_t tvBicycleModelTucker (const tvInput_t* input, const void* configPointer, void* statePointer)
 {
+	// TODO(Barach): This only does right-hand turning, need to figure out how to mirror.
+
 	// Cast the config and state pointers
 	const tvBicycleModelTuckerConfig_t* config = configPointer;
 	tvBicycleModelTuckerState_t* state = statePointer;
 
 	bool valid = true;
 
-	// Update PID coefficients
+	// Update PID coefficients (in case EEPROM is updated)
 	state->pid.kp = config->kp;
 	state->pid.ki = config->ki;
 	state->pid.kd = config->kd;
@@ -93,20 +95,21 @@ tvOutput_t tvBicycleModelTucker (const tvInput_t* input, const void* configPoint
 	volatile float yawTransferFr = motorFrYawMomentTransfer (physicalEepromMap->wheelBase, physicalEepromMap->weightFrontRearBias,
 		physicalEepromMap->trackWidthFront, physicalEepromMap->gearRatio, physicalEepromMap->wheelRadius, wheelFrAngle);
 
-	volatile float torqueRr =      input->drivingFrBias  * 0.5f * input->drivingTorqueLimit;
-	volatile float torqueFl = (1 - input->drivingFrBias) * 0.5f * input->drivingTorqueLimit;
+	volatile float torqueRr =      input->drivingFrBias  * 0.5f * input->torqueRequest;
+	volatile float torqueFl = (1 - input->drivingFrBias) * 0.5f * input->torqueRequest;
 
+	// TODO(Barach): This may change based on mirroring technique
 	volatile float yawMomentMin =
 		  torqueRr * yawTransferRl
 		+ torqueFl * yawTransferFr
-		+ AMK_REGENERATIVE_TORQUE_MAX * yawTransferRl
-		+ AMK_DRIVING_TORQUE_MAX * yawTransferFr;
+		+ input->regenTorqueLimitRl * yawTransferRl
+		+ input->drivingTorqueLimitFr * yawTransferFr;
 
 	volatile float yawMomentMax =
 		  torqueRr * yawTransferRl
 		+ torqueFl * yawTransferFr
-		+ AMK_DRIVING_TORQUE_MAX * yawTransferRl
-		+ AMK_REGENERATIVE_TORQUE_MAX * yawTransferFr;
+		+ input->drivingTorqueLimitRl * yawTransferRl
+		+ input->regenTorqueLimitFr * yawTransferFr;
 
 	// Compute ideal yaw rate from steering angle and vehicle speed.
 	volatile float yawRateIdeal = calculateYawRateIdeal (steeringAngle, vehicleSpeed);
@@ -120,15 +123,17 @@ tvOutput_t tvBicycleModelTucker (const tvInput_t* input, const void* configPoint
 		yawMomentMax / physicalEepromMap->yawMomentOfInertia);
 
 	volatile float yawMoment = yawAcceleration * physicalEepromMap->yawMomentOfInertia;
-
 	volatile float yawMomentRequired = yawMoment - torqueRr * yawTransferRr - torqueFl * yawTransferFl;
 
 	// Transmit the yaw-rate message
 	transmitYawRateMessage (&CAND1, yawRateActual, yawRateIdeal, yawMoment, TIME_MS2I (10));
 
 	// Compute the torques that satisfy both the torque limit and required yaw moment.
-	float torqueRl =  (yawMomentRequired - 0.5f * input->drivingTorqueLimit * yawTransferFr) / (yawTransferRl - yawTransferFr);
-	float torqueFr = -(yawMomentRequired - 0.5f * input->drivingTorqueLimit * yawTransferRl) / (yawTransferRl - yawTransferFr);
+	float torqueRl =  (yawMomentRequired - 0.5f * input->torqueRequest * yawTransferFr) / (yawTransferRl - yawTransferFr);
+	float torqueFr = -(yawMomentRequired - 0.5f * input->torqueRequest * yawTransferRl) / (yawTransferRl - yawTransferFr);
+
+	// TODO(Barach): Need to figure out saturation somehow (likely violate torque request constraint, just need to know how
+	// to safely).
 
 	return (tvOutput_t)
 	{
