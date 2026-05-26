@@ -28,6 +28,7 @@ CSRC =	$(ALLCSRC)								\
 		src/can/transmit.c						\
 												\
 		src/torque_thread.c						\
+		src/controls/power_limiting.c			\
 		src/controls/regen.c					\
 		src/controls/tv_const_bias.c			\
 		src/controls/tv_linear_bias.c			\

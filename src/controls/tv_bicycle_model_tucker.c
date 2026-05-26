@@ -99,14 +99,14 @@ tvOutput_t tvBicycleModelTucker (const tvInput_t* input, const void* configPoint
 	volatile float yawMomentMin =
 		  torqueRr * yawTransferRl
 		+ torqueFl * yawTransferFr
-		+ (-AMK_REGENERATIVE_TORQUE_MAX) * yawTransferRl
-		+ (AMK_DRIVING_TORQUE_MAX) * yawTransferFr;
+		+ AMK_REGENERATIVE_TORQUE_MAX * yawTransferRl
+		+ AMK_DRIVING_TORQUE_MAX * yawTransferFr;
 
 	volatile float yawMomentMax =
 		  torqueRr * yawTransferRl
 		+ torqueFl * yawTransferFr
 		+ AMK_DRIVING_TORQUE_MAX * yawTransferRl
-		+ (-AMK_REGENERATIVE_TORQUE_MAX) * yawTransferFr;
+		+ AMK_REGENERATIVE_TORQUE_MAX * yawTransferFr;
 
 	// Compute ideal yaw rate from steering angle and vehicle speed.
 	volatile float yawRateIdeal = calculateYawRateIdeal (steeringAngle, vehicleSpeed);

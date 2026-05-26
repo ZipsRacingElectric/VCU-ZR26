@@ -4,8 +4,8 @@
 // Includes
 #include "can.h"
 #include "can/transmit.h"
+#include "controls/power_limiting.h"
 #include "controls/regen.h"
-#include "controls/pid_controller.h"
 #include "controls/torque_vectoring.h"
 #include "controls/tv_const_bias.h"
 #include "controls/tv_linear_bias.h"
@@ -37,7 +37,8 @@
 
 // Global Data ----------------------------------------------------------------------------------------------------------------
 
-tvOutput_t torqueRequest;
+tvOutput_t nonDeratedOutput;
+
 float drivingTorqueLimit = 0.0f;
 float regenTorqueLimit = 0.0f;
 float drivingFrontRearBias = 0.5f;
@@ -80,31 +81,8 @@ static tvAlgorithm_t tvAlgorithms [] =
 	}
 };
 
-/**
- * @brief PID controller responsible for enforcing the global power limit. The y variable represents the vehicle's cumulative
- * power consumption, while the x variable represents the ratio to scale the torque requests by. The set-point is fixed at the
- * power limit, while the output value is clamped from [-1, 0]. This means the controller only has the ability to reduce the
- * requested torque, and this reduction only occurs when the power consumption exceeds the set-point.
- */
-static pidController_t powerLimitPid =
-{
-	.kp			= 0,
-	.ki			= 0,
-	.kd			= 0,
-	.ySetPoint	= 0,
-	.ypPrime	= 0,
-	.yiPrime	= 0,
-	.x			= 0,
-	.xp			= 0,
-	.xi			= 0,
-	.xd			= 0,
-};
-
-/// @brief Stores the previous value of the @c powerLimitPid controller's derivative term.
-static float powerLimitPidXdPrime = 0.0f;
-
-/// @brief The measurment gain of the @c powerLimitPid controller's low-pass filtering.
-static float powerLimitPidA = 0;
+/// @brief  PID controller responsible for enforcing the global power limit.
+powerLimiter_t powerLimiter;
 
 // Function Prototypes --------------------------------------------------------------------------------------------------------
 
@@ -113,32 +91,25 @@ static float powerLimitPidA = 0;
  * @param deltaTime The amount of time that has passed since the last call to this function.
  * @return The calculated input structure.
  */
-tvInput_t requestCalculateInput (float deltaTime);
+static tvInput_t requestCalculateInput (float deltaTime);
 
 /**
  * @brief Executes the selected torque-vectoring algorithm, calculating an amount of torque to request of each inverter.
- * @note This function only calculates the torque request, power limiting and validation should be performed using
- * @c requestApplyPowerLimit and @c requestValidate , respectively.
+ * @note This function only calculates the torque request.
  * @param input The input structure, as returned by @c requestCalculateInput .
  * @return The output structure containing the torque to request.
  */
-tvOutput_t requestCalculateOutput (tvInput_t* input);
+static tvOutput_t requestCalculateOutput (tvInput_t* input);
 
-/**
- * @brief Applies power-limiting to a torque request, if applicable. See @c powerLimitPid for more details.
- * @param request The request to power-limit.
- * @param deltaTime The amount of time that has passed since the last call to this function.
- * @return True if the request was de-rated, false otherwise.
- */
-bool requestApplyPowerLimit (tvOutput_t* request, float deltaTime);
+bool requestApplyDerating (tvOutput_t* output, tvInput_t* input);
 
 /**
  * @brief Checks the validity of a torque request.
- * @param request The request to validate.
+ * @param output The request to validate.
  * @param input The input structure that generated said request.
  * @return True if the request is valid, false otherwise.
  */
-bool requestValidate (tvOutput_t* request, tvInput_t* input);
+static bool requestValidate (tvOutput_t* output, tvInput_t* input);
 
 // Thread Entrypoint ----------------------------------------------------------------------------------------------------------
 
@@ -194,40 +165,31 @@ THD_FUNCTION (torqueThread, arg)
 		// Sample the sensor inputs.
 		peripheralsSample (timePrevious, timeCurrent);
 
-		// Calculate the torque request and apply power limiting.
 		bool resetRequest = physicalEepromMap->amkAutoResetRequest;
 		tvInput_t input = requestCalculateInput (TORQUE_THREAD_PERIOD_S);
+		tvOutput_t output = requestCalculateOutput (&input);
+		nonDeratedOutput = output;
 
-		torqueRequest = requestCalculateOutput (&input);
-		bool derating = requestApplyPowerLimit (&torqueRequest, TORQUE_THREAD_PERIOD_S);
-		bool plausible = requestValidate (&torqueRequest, &input);
+		bool derating = requestApplyDerating (&output, &input);
+		bool plausible = requestValidate (&output, &input);
 
 		if (vehicleState == VEHICLE_STATE_READY_TO_DRIVE)
 		{
 			if (plausible)
 			{
-				// Send the torque request messages. Note the regen derating and torque request messages must be interlaced
-				// like this, as regen derating is quite sensitive to latency.
-
-				derating &= regenDerate (&torqueRequest.torqueRl, &amkRl, &regenRlState);
-				amkSendTorqueRequest (&amkRl, torqueRequest.torqueRl, AMK_DRIVING_TORQUE_MAX, -AMK_REGENERATIVE_TORQUE_MAX, resetRequest, TORQUE_THREAD_CAN_MESSAGE_TIMEOUT);
-
-				derating &= regenDerate (&torqueRequest.torqueRr, &amkRr, &regenRrState);
-				amkSendTorqueRequest (&amkRr, torqueRequest.torqueRr, AMK_DRIVING_TORQUE_MAX, -AMK_REGENERATIVE_TORQUE_MAX, resetRequest, TORQUE_THREAD_CAN_MESSAGE_TIMEOUT);
-
-				derating &= regenDerate (&torqueRequest.torqueFl, &amkFl, &regenFlState);
-				amkSendTorqueRequest (&amkFl, torqueRequest.torqueFl, AMK_DRIVING_TORQUE_MAX, -AMK_REGENERATIVE_TORQUE_MAX, resetRequest, TORQUE_THREAD_CAN_MESSAGE_TIMEOUT);
-
-				derating &= regenDerate (&torqueRequest.torqueFr, &amkFr, &regenFrState);
-				amkSendTorqueRequest (&amkFr, torqueRequest.torqueFr, AMK_DRIVING_TORQUE_MAX, -AMK_REGENERATIVE_TORQUE_MAX, resetRequest, TORQUE_THREAD_CAN_MESSAGE_TIMEOUT);
+				// Send the torque request messages.
+				amkSendTorqueRequest (&amkRl, output.torqueRl, AMK_DRIVING_TORQUE_MAX, AMK_REGENERATIVE_TORQUE_MAX, resetRequest, TORQUE_THREAD_CAN_MESSAGE_TIMEOUT);
+				amkSendTorqueRequest (&amkRr, output.torqueRr, AMK_DRIVING_TORQUE_MAX, AMK_REGENERATIVE_TORQUE_MAX, resetRequest, TORQUE_THREAD_CAN_MESSAGE_TIMEOUT);
+				amkSendTorqueRequest (&amkFl, output.torqueFl, AMK_DRIVING_TORQUE_MAX, AMK_REGENERATIVE_TORQUE_MAX, resetRequest, TORQUE_THREAD_CAN_MESSAGE_TIMEOUT);
+				amkSendTorqueRequest (&amkFr, output.torqueFr, AMK_DRIVING_TORQUE_MAX, AMK_REGENERATIVE_TORQUE_MAX, resetRequest, TORQUE_THREAD_CAN_MESSAGE_TIMEOUT);
 			}
 			else
 			{
 				// Send 0 torque request message (keep torque limits, as lowering them in motion will trigger a fault).
-				amkSendTorqueRequest (&amkRl, 0, AMK_DRIVING_TORQUE_MAX, -AMK_REGENERATIVE_TORQUE_MAX, resetRequest, TORQUE_THREAD_CAN_MESSAGE_TIMEOUT);
-				amkSendTorqueRequest (&amkRr, 0, AMK_DRIVING_TORQUE_MAX, -AMK_REGENERATIVE_TORQUE_MAX, resetRequest, TORQUE_THREAD_CAN_MESSAGE_TIMEOUT);
-				amkSendTorqueRequest (&amkFl, 0, AMK_DRIVING_TORQUE_MAX, -AMK_REGENERATIVE_TORQUE_MAX, resetRequest, TORQUE_THREAD_CAN_MESSAGE_TIMEOUT);
-				amkSendTorqueRequest (&amkFr, 0, AMK_DRIVING_TORQUE_MAX, -AMK_REGENERATIVE_TORQUE_MAX, resetRequest, TORQUE_THREAD_CAN_MESSAGE_TIMEOUT);
+				amkSendTorqueRequest (&amkRl, 0, AMK_DRIVING_TORQUE_MAX, AMK_REGENERATIVE_TORQUE_MAX, resetRequest, TORQUE_THREAD_CAN_MESSAGE_TIMEOUT);
+				amkSendTorqueRequest (&amkRr, 0, AMK_DRIVING_TORQUE_MAX, AMK_REGENERATIVE_TORQUE_MAX, resetRequest, TORQUE_THREAD_CAN_MESSAGE_TIMEOUT);
+				amkSendTorqueRequest (&amkFl, 0, AMK_DRIVING_TORQUE_MAX, AMK_REGENERATIVE_TORQUE_MAX, resetRequest, TORQUE_THREAD_CAN_MESSAGE_TIMEOUT);
+				amkSendTorqueRequest (&amkFr, 0, AMK_DRIVING_TORQUE_MAX, AMK_REGENERATIVE_TORQUE_MAX, resetRequest, TORQUE_THREAD_CAN_MESSAGE_TIMEOUT);
 			}
 		}
 		else
@@ -281,32 +243,28 @@ void torqueThreadSetDrivingTorqueLimit (float torque)
 
 void torqueThreadSetRegenTorqueLimit (float torque)
 {
-	if (torque > AMK_REGENERATIVE_TORQUE_MAX * AMK_COUNT)
+	// Allow both positive and negative values, as I will probably enter values incorrectly.
+	if (torque > 0)
+		torque = -torque;
+
+	// Clamp to the max magnitude
+	if (torque < AMK_REGENERATIVE_TORQUE_MAX * AMK_COUNT)
 	{
 		regenTorqueLimit = AMK_REGENERATIVE_TORQUE_MAX * AMK_COUNT;
-		return;
-	}
-
-	if (torque < 0)
-	{
-		regenTorqueLimit = 0;
 		return;
 	}
 
 	regenTorqueLimit = torque;
 }
 
-void torqueThreadSetPowerLimit (float powerLimit)
+void torqueThreadUpdatePowerLimiter ()
 {
-	powerLimitPid.ySetPoint = powerLimit;
-}
-
-void torqueThreadSetPowerLimitPid (float kp, float ki, float kd, float a)
-{
-	powerLimitPid.kp	= kp;
-	powerLimitPid.ki	= ki;
-	powerLimitPid.kd	= kd;
-	powerLimitPidA		= a;
+	powerLimiterInit (&powerLimiter,
+		physicalEepromMap->powerLimitPidKp,
+		physicalEepromMap->powerLimitPidKi,
+		physicalEepromMap->powerLimitPidKd,
+		physicalEepromMap->powerLimitPidKa,
+		physicalEepromMap->powerLimit);
 }
 
 void torqueThreadSetDrivingFrBias (float bias)
@@ -334,22 +292,41 @@ tvInput_t requestCalculateInput (float deltaTime)
 	// Regen input
 	float paddleInput0 = sibGetAnalogValueLock (&steeringInputBoard, 0);
 	float paddleInput1 = sibGetAnalogValueLock (&steeringInputBoard, 1);
-	float regenRequest = paddleInput0 > paddleInput1 ? paddleInput0 : paddleInput1;
+	float paddleRequest = paddleInput0 > paddleInput1 ? paddleInput0 : paddleInput1;
 
-	// Derate based on throttle position (no regen when pedal is depressed)
-	regenRequest = lerp2dSaturated (pedals.appsRequest,
-		physicalEepromMap->regenDeratingThrottleStart, regenRequest,
-		physicalEepromMap->regenDeratingThrottleEnd, 0);
+	// Derate based on throttle position (no regen when throttle is depressed)
+	paddleRequest = lerp2dSaturated (pedals.appsRequest,
+		physicalEepromMap->regenDeratingThrottleLow, paddleRequest,
+		physicalEepromMap->regenDeratingThrottleHigh, 0);
 
-	tvInput_t input =
+	// Calculate power limiting
+	float power = bmsGetPowerLock (&bms);
+	float limitRatio = powerLimiterCalculateTorqueLimit (&powerLimiter, power, deltaTime);
+
+	// Calculate regen derating
+	float regenTorqueLimitRl = regenLimit (AMK_REGENERATIVE_TORQUE_MAX, &amkRl, &regenRlState);
+	float regenTorqueLimitRr = regenLimit (AMK_REGENERATIVE_TORQUE_MAX, &amkRr, &regenRrState);
+	float regenTorqueLimitFl = regenLimit (AMK_REGENERATIVE_TORQUE_MAX, &amkFl, &regenFlState);
+	float regenTorqueLimitFr = regenLimit (AMK_REGENERATIVE_TORQUE_MAX, &amkFr, &regenFrState);
+
+	// Torque request is the combination of the throttle request and regen request, scaled by the power limiting ratio.
+	float torqueRequest = (pedals.appsRequest * drivingTorqueLimit + paddleRequest * regenTorqueLimit) * limitRatio;
+
+	return (tvInput_t)
 	{
-		.deltaTime			= deltaTime,
-		.drivingTorqueLimit	= pedals.appsRequest * drivingTorqueLimit,
-		.regenTorqueLimit	= regenRequest * regenTorqueLimit,
-		.drivingFrBias		= drivingFrontRearBias,
-		.regenFrBias		= regenFrontRearBias
+		.deltaTime				= deltaTime,
+		.torqueRequest			= torqueRequest,
+		.drivingTorqueLimitRl	= AMK_DRIVING_TORQUE_MAX,
+		.drivingTorqueLimitRr	= AMK_DRIVING_TORQUE_MAX,
+		.drivingTorqueLimitFl	= AMK_DRIVING_TORQUE_MAX,
+		.drivingTorqueLimitFr	= AMK_DRIVING_TORQUE_MAX,
+		.regenTorqueLimitRl		= regenTorqueLimitRl,
+		.regenTorqueLimitRr		= regenTorqueLimitRr,
+		.regenTorqueLimitFl		= regenTorqueLimitFl,
+		.regenTorqueLimitFr		= regenTorqueLimitFr,
+		.drivingFrBias			= drivingFrontRearBias,
+		.regenFrBias			= regenFrontRearBias,
 	};
-	return input;
 }
 
 tvOutput_t requestCalculateOutput (tvInput_t* input)
@@ -358,24 +335,55 @@ tvOutput_t requestCalculateOutput (tvInput_t* input)
 	return tvAlgorithms [algoritmIndex].entrypoint (input, tvAlgorithms [algoritmIndex].config, tvAlgorithms [algoritmIndex].state);
 }
 
-bool requestApplyPowerLimit (tvOutput_t* output, float deltaTime)
+bool requestApplyDerating (tvOutput_t* output, tvInput_t* input)
 {
-	// Calculate the cumulative power consumption of the inverters.
-	float cumulativePower = amksGetCumulativePower (amks, AMK_COUNT);
+	bool derated = false;
 
-	// Calculate the torque reduction ratio.
-	pidCalculate (&powerLimitPid, cumulativePower, deltaTime);
-	pidFilterDerivative (&powerLimitPid, powerLimitPidA, &powerLimitPidXdPrime);
-	float torqueReductionRatio = pidApplyAntiWindup (&powerLimitPid, -1.0f, 0.0f) + 1.0f;
+	if (output->torqueRl > input->drivingTorqueLimitRl)
+	{
+		output->torqueRl = input->drivingTorqueLimitRl;
+		derated = true;
+	}
+	else if (output->torqueRl < input->regenTorqueLimitRl)
+	{
+		output->torqueRl = input->regenTorqueLimitRl;
+		derated = true;
+	}
 
-	// Scale the torque requests equally by the reduction ratio.
-	output->torqueRl *= torqueReductionRatio;
-	output->torqueRr *= torqueReductionRatio;
-	output->torqueFl *= torqueReductionRatio;
-	output->torqueFr *= torqueReductionRatio;
+	if (output->torqueRr > input->drivingTorqueLimitRr)
+	{
+		output->torqueRr = input->drivingTorqueLimitRr;
+		derated = true;
+	}
+	else if (output->torqueRr < input->regenTorqueLimitRr)
+	{
+		output->torqueRr = input->regenTorqueLimitRr;
+		derated = true;
+	}
 
-	// If reduction ratio is not 1, derating is occurring.
-	return (1.0f - torqueReductionRatio < FLT_EPSILON);
+	if (output->torqueFl > input->drivingTorqueLimitFl)
+	{
+		output->torqueFl = input->drivingTorqueLimitFl;
+		derated = true;
+	}
+	else if (output->torqueFl < input->regenTorqueLimitFl)
+	{
+		output->torqueFl = input->regenTorqueLimitFl;
+		derated = true;
+	}
+
+	if (output->torqueFr > input->drivingTorqueLimitFr)
+	{
+		output->torqueFr = input->drivingTorqueLimitFr;
+		derated = true;
+	}
+	else if (output->torqueFr < input->regenTorqueLimitFr)
+	{
+		output->torqueFr = input->regenTorqueLimitFr;
+		derated = true;
+	}
+
+	return derated;
 }
 
 bool requestValidate (tvOutput_t* output, tvInput_t* input)
@@ -386,34 +394,37 @@ bool requestValidate (tvOutput_t* output, tvInput_t* input)
 	// Check the pedal plausibility.
 	valid &= pedals.plausible;
 
-	// Calculate the cumulative driving and regen torques. These are calculated separately, as regen shouldn't allow more than
-	// the max driving torque to be requested, and vice versa.
-	float drivingTorque = 0.0f;
-	float regenTorque = 0.0f;
+	// TODO(Barach): Need to rework for medium/high speed.
+	(void) input;
 
-	if (output->torqueRl >= 0.0f)
-		drivingTorque += output->torqueRl;
-	else
-	 	regenTorque -= output->torqueRl;
+	// // Calculate the cumulative driving and regen torques. These are calculated separately, as regen shouldn't allow more than
+	// // the max driving torque to be requested, and vice versa.
+	// float drivingTorque = 0.0f;
+	// float regenTorque = 0.0f;
 
-	if (output->torqueRr >= 0.0f)
-		drivingTorque += output->torqueRr;
-	else
-	 	regenTorque -= output->torqueRr;;
+	// if (output->torqueRl >= 0.0f)
+	// 	drivingTorque += output->torqueRl;
+	// else
+	//  	regenTorque -= output->torqueRl;
 
-	if (output->torqueFl >= 0.0f)
-		drivingTorque += output->torqueFl;
-	else
-		regenTorque -= output->torqueFl;
+	// if (output->torqueRr >= 0.0f)
+	// 	drivingTorque += output->torqueRr;
+	// else
+	//  	regenTorque -= output->torqueRr;;
 
-	if (output->torqueFr >= 0.0f)
-		drivingTorque += output->torqueFr;
-	else
-	 	regenTorque -= output->torqueFr;
+	// if (output->torqueFl >= 0.0f)
+	// 	drivingTorque += output->torqueFl;
+	// else
+	// 	regenTorque -= output->torqueFl;
 
-	// Validate the cumulative torque limits are not exceeded.
-	valid &= drivingTorque <= input->drivingTorqueLimit * (1 + CUMULATIVE_TORQUE_TOLERANCE);
-	valid &= regenTorque >= -input->regenTorqueLimit * (1 + CUMULATIVE_TORQUE_TOLERANCE);
+	// if (output->torqueFr >= 0.0f)
+	// 	drivingTorque += output->torqueFr;
+	// else
+	//  	regenTorque -= output->torqueFr;
+
+	// // Validate the cumulative torque limits are not exceeded.
+	// valid &= drivingTorque <= input->drivingTorqueLimit * (1 + CUMULATIVE_TORQUE_TOLERANCE);
+	// valid &= regenTorque >= -input->regenTorqueLimit * (1 + CUMULATIVE_TORQUE_TOLERANCE);
 
 	return valid;
 }

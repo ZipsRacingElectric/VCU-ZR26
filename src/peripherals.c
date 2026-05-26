@@ -159,14 +159,7 @@ void peripheralsReconfigure (void* caller)
 	torqueThreadSetDrivingFrBias (physicalEepromMap->drivingFrBias);
 	torqueThreadSetRegenFrBias (physicalEepromMap->regenFrBias);
 	torqueThreadSelectAlgorithm (physicalEepromMap->torqueAlgoritmIndex);
-	torqueThreadSetPowerLimit (physicalEepromMap->powerLimit);
-	torqueThreadSetPowerLimitPid
-	(
-		physicalEepromMap->powerLimitPidKp,
-		physicalEepromMap->powerLimitPidKi,
-		physicalEepromMap->powerLimitPidKd,
-		physicalEepromMap->powerLimitPidA
-	);
+	torqueThreadUpdatePowerLimiter ();
 
 	// GLV battery initialization
 	uint16_t glvSample20v = physicalEepromMap->glvBattery20v;

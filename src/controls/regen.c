@@ -6,12 +6,8 @@
 #include "controls/lerp.h"
 #include "controls/vehicle_dynamics.h"
 
-bool regenDerate (float* torque, amkInverter_t* amk, regenState_t* state)
+float regenLimit (float motorLimit, amkInverter_t* amk, regenState_t* state)
 {
-	// If no regen is being requested, nothing to derate.
-	if (*torque >= 0)
-		return false;
-
 	// Get the motor speed
 	canNodeLock ((canNode_t*) amk);
 	float motorSpeed = amk->actualSpeed;
@@ -28,9 +24,6 @@ bool regenDerate (float* torque, amkInverter_t* amk, regenState_t* state)
 		physicalEepromMap->regenDeratingSpeedHigh, physicalEepromMap->regenDeratingHysteresis,
 		&state->deratingRatioIncreasing, &state->deratingRatioPrime);
 
-	// Scale the regen by the derating ratio.
-	*torque *= deratingRatio;
-
-	// If the derating ratio is less than 1 (with small tolerance) the request has been derated.
-	return deratingRatio < 0.99f;
+	// The regen limit is the motor's limit scaled by the derating ratio
+	return motorLimit * deratingRatio;
 }

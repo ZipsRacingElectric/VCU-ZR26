@@ -34,10 +34,10 @@ static const void* READONLY_DATA [READONLY_COUNT] =
 	&pedals.bseR.sample,
 	&sas.sample,
 	&glvBattery.sample,
-	&torqueRequest.torqueRl,
-	&torqueRequest.torqueRr,
-	&torqueRequest.torqueFl,
-	&torqueRequest.torqueFr
+	&nonDeratedOutput.torqueRl,
+	&nonDeratedOutput.torqueRr,
+	&nonDeratedOutput.torqueFl,
+	&nonDeratedOutput.torqueFr
 };
 
 static const uint16_t READONLY_SIZES [READONLY_COUNT] =
@@ -48,10 +48,10 @@ static const uint16_t READONLY_SIZES [READONLY_COUNT] =
 	sizeof (pedals.bseR.sample),
 	sizeof (sas.sample),
 	sizeof (glvBattery.sample),
-	sizeof (torqueRequest.torqueRl),
-	sizeof (torqueRequest.torqueRr),
-	sizeof (torqueRequest.torqueFl),
-	sizeof (torqueRequest.torqueFr)
+	sizeof (nonDeratedOutput.torqueRl),
+	sizeof (nonDeratedOutput.torqueRr),
+	sizeof (nonDeratedOutput.torqueFl),
+	sizeof (nonDeratedOutput.torqueFr)
 };
 
 // Functions ------------------------------------------------------------------------------------------------------------------

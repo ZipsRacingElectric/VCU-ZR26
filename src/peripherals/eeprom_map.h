@@ -43,8 +43,8 @@ typedef struct
 
 	sasConfig_t sasConfig;							// 0x0048
 
-	float regenDeratingThrottleStart;				// 0x005C
-	float regenDeratingThrottleEnd;					// 0x0060
+	float regenDeratingThrottleLow;					// 0x005C
+	float regenDeratingThrottleHigh;				// 0x0060
 	float regenDeratingSpeedLow;					// 0x0064
 	float regenDeratingSpeedHigh;					// 0x0068
 	float regenDeratingHysteresis;					// 0x006C
@@ -53,7 +53,7 @@ typedef struct
 	float powerLimitPidKp;							// 0x0074
 	float powerLimitPidKi;							// 0x0078
 	float powerLimitPidKd;							// 0x007C
-	float powerLimitPidA;							// 0x0080
+	float powerLimitPidKa;							// 0x0080
 
 	// Straight-diff TV config
 	tvConstBiasConfig_t sdConfig;					// 0x0084
@@ -63,7 +63,7 @@ typedef struct
 
 	bool watchdogEnabled;							// 0x0098
 
-	// 0x009C to 0x00B4
+	// 0x009C to 0x00B8
 
 	/// @brief The reduction ratio of the vehicle's gearboxes. Ex, 14:1 => 14, 27:2 => 13.5.
 	float gearRatio;
@@ -72,18 +72,18 @@ typedef struct
 	/// @brief The distance between the center of the front wheel and the center of the rear wheel, along the x-axis, in
 	/// meters.
 	float wheelBase;
-	/// @brief The front-to-rear bias of the vehicle's weight distribution. 0 => 100% rearwards, 1 => 100% frontwards.
-	float frontRearWeightBias;
-	/// @brief The distance between the center of the front left and front right wheels' contact patches, in meters.
-	float trackWidthRear;
+	/// @brief The front-to-rear bias of the vehicle's weight distribution. 1 => 100% rearwards, 0 => 100% frontwards.
+	float weightFrontRearBias;
 	/// @brief The distance between the center of the rear left and rear right wheels' contact patches, in meters.
+	float trackWidthRear;
+	/// @brief The distance between the center of the front left and front right wheels' contact patches, in meters.
 	float trackWidthFront;
 	/// @brief The reduction ratio of the vehicle's steering rack. Ex, 10 => 110 deg steering wheel angle = 11 deg wheel angle.
 	float steeringRatio;
 	/// @brief The moment of intertia of the vehicle, about the yaw axis, in kg*m^2.
 	float yawMomentOfInertia;
 
-	uint8_t pad1 [68];								// 0x00B4
+	uint8_t pad1 [68];								// 0x00BC
 
 	tvBicycleModelTuckerConfig_t bicycleConfig;		// 0x0100
 } eepromMap_t;
