@@ -80,8 +80,6 @@ static inline float calculateYawRateIdeal (float steeringAngle, float vehicleSpe
 
 tvOutput_t tvBicycleModelTucker (const tvInput_t* input, const void* configPointer, void* statePointer)
 {
-	// TODO(Barach): This only does right-hand turning, need to figure out how to mirror.
-
 	// Cast the config and state pointers
 	const tvBicycleModelTuckerConfig_t* config = configPointer;
 	tvBicycleModelTuckerState_t* state = statePointer;
