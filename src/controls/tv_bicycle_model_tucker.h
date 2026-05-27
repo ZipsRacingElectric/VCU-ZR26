@@ -32,6 +32,7 @@ typedef struct
 {
 	pidController_t pid;
 	float xdPrime;
+	bool rightHandSteering;
 } tvBicycleModelTuckerState_t;
 
 // Functions ------------------------------------------------------------------------------------------------------------------

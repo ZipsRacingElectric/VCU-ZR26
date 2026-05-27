@@ -111,7 +111,17 @@ tvOutput_t tvBicycleModelTucker (const tvInput_t* input, const void* configPoint
 	valid &= sas.state == ANALOG_SENSOR_VALID;
 	float steeringAngle = sas.value;
 
-	bool rightHandSteering = steeringAngle > 0;
+	// Determine whether the vehicle is steering to the left or right. If not steering (due to the deadzone), use the last
+	// direction the vehicle was steering in.
+	bool rightHandSteering;
+	if (steeringAngle > 0.01f)
+		rightHandSteering = true;
+	else if (steeringAngle < -0.01f)
+		rightHandSteering = false;
+	else
+		rightHandSteering = state->rightHandSteering;
+
+	state->rightHandSteering = rightHandSteering;
 
 	volatile float torqueLimitRearOuter;
 	volatile float torqueLimitFrontInner;
@@ -134,19 +144,21 @@ tvOutput_t tvBicycleModelTucker (const tvInput_t* input, const void* configPoint
 	volatile float torqueRearInner  =      input->drivingFrBias  * 0.5f * input->torqueRequest;
 	volatile float torqueFrontOuter = (1 - input->drivingFrBias) * 0.5f * input->torqueRequest;
 
-	// Minimum yaw acceleration is max regen on the rear-outer and max torque on the front-inner.
-	volatile float yawAccelerationMin =
-		 (torqueRearInner       * yawTransferRearInner
-		+ torqueFrontOuter      * yawTransferFrontOuter
-		+ regenLimitRearOuter   * yawTransferRearOuter
-		+ torqueLimitFrontInner * yawTransferFrontInner) / physicalEepromMap->yawMomentOfInertia;
+	// TODO(Barach): This is not correct.
 
-	// Maximum yaw acceleration is max torque on the rear-outer and max regen on the front-inner.
-	volatile float yawAccelerationMax =
-		 (torqueRearInner       * yawTransferRearInner
-		+ torqueFrontOuter      * yawTransferFrontOuter
-		+ torqueLimitRearOuter  * yawTransferRearOuter
-		+ regenLimitFrontInner  * yawTransferFrontInner) / physicalEepromMap->yawMomentOfInertia;
+	// // Minimum yaw acceleration is max regen on the rear-outer and max torque on the front-inner.
+	// volatile float yawAccelerationMin =
+	// 	 (torqueRearInner       * yawTransferRearInner
+	// 	+ torqueFrontOuter      * yawTransferFrontOuter
+	// 	+ regenLimitRearOuter   * yawTransferRearOuter
+	// 	+ torqueLimitFrontInner * yawTransferFrontInner) / physicalEepromMap->yawMomentOfInertia;
+
+	// // Maximum yaw acceleration is max torque on the rear-outer and max regen on the front-inner.
+	// volatile float yawAccelerationMax =
+	// 	 (torqueRearInner       * yawTransferRearInner
+	// 	+ torqueFrontOuter      * yawTransferFrontOuter
+	// 	+ torqueLimitRearOuter  * yawTransferRearOuter
+	// 	+ regenLimitFrontInner  * yawTransferFrontInner) / physicalEepromMap->yawMomentOfInertia;
 
 	// Calculate the ideal yaw rate from steering angle and vehicle speed.
 	volatile float yawRateIdeal = calculateYawRateIdeal (steeringAngle, vehicleSpeed);
@@ -155,7 +167,7 @@ tvOutput_t tvBicycleModelTucker (const tvInput_t* input, const void* configPoint
 	state->pid.ySetPoint = yawRateIdeal;
 	pidCalculate (&state->pid, yawRateActual, input->deltaTime);
 	pidFilterDerivative (&state->pid, config->ka, &state->xdPrime);
-	volatile float yawAcceleration = pidApplyAntiWindup (&state->pid, yawAccelerationMin, yawAccelerationMax);
+	volatile float yawAcceleration = pidApplyAntiWindup (&state->pid, -3000, 3000);
 
 	// Calculate the target yaw moment and required contribution of the remaining wheels.
 	volatile float yawMoment = yawAcceleration * physicalEepromMap->yawMomentOfInertia;
@@ -171,8 +183,31 @@ tvOutput_t tvBicycleModelTucker (const tvInput_t* input, const void* configPoint
 	float torqueRearOuter  =  (yawMomentRequired - 0.5f * input->torqueRequest * yawTransferFrontInner) / denominator;
 	float torqueFrontInner = -(yawMomentRequired - 0.5f * input->torqueRequest * yawTransferRearOuter)  / denominator;
 
-	// TODO(Barach): Need to figure out saturation somehow (likely violate torque request constraint, just need to know how
-	// to safely).
+	// Saturate the motor requests
+
+	if (torqueRearOuter > torqueLimitRearOuter)
+	{
+		torqueRearOuter  = torqueLimitRearOuter;
+		torqueFrontInner = 0.5f * input->torqueRequest - torqueLimitRearOuter;
+	}
+
+	if (torqueFrontInner > torqueLimitFrontInner)
+	{
+		torqueFrontInner = torqueLimitFrontInner;
+		torqueRearOuter = 0.5f * input->torqueRequest - torqueLimitFrontInner;
+	}
+
+	if (torqueRearOuter < regenLimitRearOuter)
+	{
+		torqueRearOuter = regenLimitRearOuter;
+		torqueFrontInner = 0.5f * input->torqueRequest - regenLimitRearOuter;
+	}
+
+	if (torqueFrontInner < regenLimitFrontInner)
+	{
+		torqueFrontInner = regenLimitFrontInner;
+		torqueRearOuter = 0.5f * input->torqueRequest - regenLimitFrontInner;
+	}
 
 	// Map the motor torques to the output based on the steering direction.
 	return (tvOutput_t)
