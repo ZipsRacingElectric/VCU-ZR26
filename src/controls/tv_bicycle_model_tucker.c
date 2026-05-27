@@ -15,8 +15,7 @@
 /// @brief The width of the loopup table along the steering angle axis. Note this axis is mirrored.
 #define STEERING_ANGLE_WIDTH 4
 
-// TODO(Barach): Update this, CAN node, and DBC file to km/h (probably dash too).
-/// @brief The maximum vehicle speed defined by the loopup table, in mph.
+/// @brief The maximum vehicle speed defined by the loopup table, in km/h.
 #define VEHICLE_SPEED_MAX 1
 
 /// @brief The width of the loopup table along the vehicle speed axis. This axis is not mirrored.
@@ -101,7 +100,7 @@ tvOutput_t tvBicycleModelTucker (const tvInput_t* input, const void* configPoint
 
 	// canNodeLock ((canNode_t*) &ecumaster);
 
-	// valid &= ecumaster.state == CAN_NODE_VALID;
+	// valid &= ecumasterGpsValid (&ecumaster);
 	// float yawRateActual = ecumaster.zAngleRate;
 	// float vehicleSpeed = ecumaster.speed;
 
