@@ -18,6 +18,8 @@
 
 // Constants ------------------------------------------------------------------------------------------------------------------
 
+#define TORQUE_LIMIT_TOLERANCE				0.01f
+
 #define TORQUE_THREAD_PERIOD				TIME_MS2I (10)
 #define TORQUE_THREAD_CAN_MESSAGE_TIMEOUT	(TORQUE_THREAD_PERIOD / 6)
 
@@ -260,37 +262,25 @@ static bool requestValidate (tvOutput_t* output, tvInput_t* input)
 	// Check the pedal plausibility.
 	valid &= pedals.plausible;
 
-	// TODO(Barach): Need to rework for medium/high speed.
-	(void) input;
+	// Calculate the cumulative requested torque. Here, driving torque and regen torque are part of the same sum, meaning regen
+	// requests allow more driving torque than the limit. This isn't a concern, as, at low speeds, the regen limits are derated
+	// to 0, meaning the car cannot request torque below 5 km/h.
+	float cumulativeTorque =
+		  output->torqueRl + output->torqueRr
+		+ output->torqueFl + output->torqueFr;
 
-	// // Calculate the cumulative driving and regen torques. These are calculated separately, as regen shouldn't allow more than
-	// // the max driving torque to be requested, and vice versa.
-	// float drivingTorque = 0.0f;
-	// float regenTorque = 0.0f;
-
-	// if (output->torqueRl >= 0.0f)
-	// 	drivingTorque += output->torqueRl;
-	// else
-	//  	regenTorque -= output->torqueRl;
-
-	// if (output->torqueRr >= 0.0f)
-	// 	drivingTorque += output->torqueRr;
-	// else
-	//  	regenTorque -= output->torqueRr;;
-
-	// if (output->torqueFl >= 0.0f)
-	// 	drivingTorque += output->torqueFl;
-	// else
-	// 	regenTorque -= output->torqueFl;
-
-	// if (output->torqueFr >= 0.0f)
-	// 	drivingTorque += output->torqueFr;
-	// else
-	//  	regenTorque -= output->torqueFr;
-
-	// // Validate the cumulative torque limits are not exceeded.
-	// valid &= drivingTorque <= input->drivingTorqueLimit * (1 + CUMULATIVE_TORQUE_TOLERANCE);
-	// valid &= regenTorque >= -input->regenTorqueLimit * (1 + CUMULATIVE_TORQUE_TOLERANCE);
+	if (input->torqueRequest >= 0)
+	{
+		// If driving torque is being requested, the cumulative torque must be positive and less than the torque request.
+		valid &= -TORQUE_LIMIT_TOLERANCE <= cumulativeTorque;
+		valid &= cumulativeTorque <= input->torqueRequest + TORQUE_LIMIT_TOLERANCE;
+	}
+	else
+	{
+		// If regen torque is being requested, the cumulative torque must be negative and greater than the regen torque limit.
+		valid &= input->torqueRequest - TORQUE_LIMIT_TOLERANCE <= cumulativeTorque;
+		valid &= cumulativeTorque <= TORQUE_LIMIT_TOLERANCE;
+	}
 
 	return valid;
 }
@@ -353,7 +343,7 @@ THD_FUNCTION (torqueThread, arg)
 			amkSendEnergizationRequest (&amkFr, false, resetRequest, TORQUE_THREAD_CAN_MESSAGE_TIMEOUT);
 		}
 
-		// Nofify the state thread of the current plausibility.
+		// Notify the state thread of the current plausibility.
 		stateThreadSetTorquePlausibility (plausible, derating);
 
 		// Transmit the non-derated torque message (for data logging).
@@ -378,7 +368,7 @@ void torqueThreadSelectAlgorithm (uint8_t index)
 
 void torqueThreadSetDrivingTorqueLimit (float torque)
 {
-	// Clamp to min / max
+	// Clamp to min/max
 	if (torque > AMK_DRIVING_TORQUE_MAX * AMK_COUNT)
 		torque = AMK_DRIVING_TORQUE_MAX * AMK_COUNT;
 	if (torque < 0)
