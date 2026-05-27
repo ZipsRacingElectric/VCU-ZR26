@@ -36,7 +36,7 @@
 // Global Data ----------------------------------------------------------------------------------------------------------------
 
 // External
-uint8_t torqueAlgoritmIndex = 0;
+uint8_t torqueAlgorithmIndex = 0;
 float drivingTorqueLimit = 0.0f;
 float regenTorqueLimit = 0.0f;
 float drivingFrontRearBias = 0.5f;
@@ -187,7 +187,7 @@ static tvInput_t requestCalculateInput (systime_t timePrevious, systime_t timeCu
 static tvOutput_t requestCalculateOutput (tvInput_t* input)
 {
 	// Use the user-specified torque-vectoring algorithm to calculate the torque request.
-	uint8_t index = torqueAlgoritmIndex;
+	uint8_t index = torqueAlgorithmIndex;
 	return tvAlgorithms [index].entrypoint (input, tvAlgorithms [index].config, tvAlgorithms [index].state);
 }
 
@@ -363,7 +363,7 @@ void torqueThreadSelectAlgorithm (uint8_t index)
 	if (index < TV_ALGORITHM_COUNT)
 		index = index % TV_ALGORITHM_COUNT;
 
-	torqueAlgoritmIndex = index;
+	torqueAlgorithmIndex = index;
 }
 
 void torqueThreadSetDrivingTorqueLimit (float torque)

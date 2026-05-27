@@ -6,37 +6,25 @@ tvOutput_t tvConstBias (const tvInput_t* input, const void* configPointer, void*
 	const tvConstBiasConfig_t* config = configPointer;
 	(void) statePointer;
 
-	// Driving torque bias
+	// Determine which biases to use based on whether the request is for driving torque or regen torque.
 
-	float drivingRearBias	= input->drivingFrBias;
-	float drivingFrontBias	= 1 - drivingRearBias;
-	float drivingLeftBias	= config->drivingLeftRightBias;
-	float drivingRightBias	= 1 - drivingLeftBias;
+	bool drivingBiases = input->torqueRequest >= 0;
 
-	// Regen torque bias
+	float biasRear  = drivingBiases ? input->drivingFrBias         : input->regenFrBias;
+	float biasLeft  = drivingBiases ? config->drivingLeftRightBias : config->regenLeftRightBias;
+	float biasFront = 1 - biasRear;
+	float biasRight = 1 - biasLeft;
 
-	float regenRearBias		= input->regenFrBias;
-	float regenFrontBias	= 1 - regenRearBias;
-	float regenLeftBias		= config->regenLeftRightBias;
-	float regenRightBias	= 1 - regenLeftBias;
-
-	// Output is the biased sum of driving torque and regen torque.
+	// Output is the biased torque request.
 
 	tvOutput_t output =
 	{
 		.valid = true,
 
-		.torqueRl	= input->drivingTorqueLimit	* drivingRearBias	* drivingLeftBias
-					- input->regenTorqueLimit	* regenRearBias		* regenLeftBias,
-
-		.torqueRr	= input->drivingTorqueLimit * drivingRearBias	* drivingRightBias
-					- input->regenTorqueLimit	* regenRearBias		* regenRightBias,
-
-		.torqueFl	= input->drivingTorqueLimit * drivingFrontBias	* drivingLeftBias
-					- input->regenTorqueLimit	* regenFrontBias	* regenLeftBias,
-
-		.torqueFr	= input->drivingTorqueLimit	* drivingFrontBias	* drivingRightBias
-					- input->regenTorqueLimit	* regenFrontBias	* regenRightBias
+		.torqueRl	= input->torqueRequest * biasRear  * biasLeft,
+		.torqueRr	= input->torqueRequest * biasRear  * biasRight,
+		.torqueFl	= input->torqueRequest * biasFront * biasLeft,
+		.torqueFr	= input->torqueRequest * biasFront * biasRight,
 	};
 	return output;
 }

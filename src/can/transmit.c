@@ -204,10 +204,10 @@ msg_t transmitNonderatedTorqueMessage (CANDriver* driver, sysinterval_t timeout)
 		.SID	= NONDERATED_TORQUE_MESSAGE_ID,
 		.data16	=
 		{
-			TORQUE_16_TO_WORD (nonDeratedOutput.torqueRl),
-			TORQUE_16_TO_WORD (nonDeratedOutput.torqueRr),
-			TORQUE_16_TO_WORD (nonDeratedOutput.torqueFl),
-			TORQUE_16_TO_WORD (nonDeratedOutput.torqueFr)
+			TORQUE_16_TO_WORD (torqueRequestNonDerated.torqueRl),
+			TORQUE_16_TO_WORD (torqueRequestNonDerated.torqueRr),
+			TORQUE_16_TO_WORD (torqueRequestNonDerated.torqueFl),
+			TORQUE_16_TO_WORD (torqueRequestNonDerated.torqueFr)
 		}
 	};
 
