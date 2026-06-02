@@ -37,6 +37,8 @@ typedef struct
 	sasConfig_t*	config;
 	uint16_t		sample;
 	float			value;
+	uint16_t		samplePositive;
+	uint16_t		sampleNegative;
 } sas_t;
 
 // Functions ------------------------------------------------------------------------------------------------------------------
