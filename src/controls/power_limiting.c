@@ -7,16 +7,16 @@ void powerLimiterInit (powerLimiter_t* limiter, float kp, float ki, float kd, fl
 	{
 		.pid =
 		{
-			.kp		= kp,
-			.ki		= ki,
-			.kd		= kd,
-			.x		= powerLimit,
-			.xp		= 0,
-			.xi		= 0,
-			.xd		= 0
+			.kp			= kp,
+			.ki			= ki,
+			.kd			= kd,
+			.ySetPoint	= powerLimit,
+			.xp			= 0,
+			.xi			= 0,
+			.xd			= 0
 		},
-		.ka			= ka,
-		.xdPrime	= 0
+		.ka				= ka,
+		.xdPrime		= 0
 	};
 }
 

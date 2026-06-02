@@ -3,7 +3,7 @@
 
 // Abby Tucker's Torque Vectoring Bicycle Model -------------------------------------------------------------------------------
 //
-// Author: Abby Tucker, Cole Barach
+// Author: Abby Tucker, Cole Barach, Ben Hawke
 // Date Created: 2026.05.20
 //
 // Description: TODO(Barach)

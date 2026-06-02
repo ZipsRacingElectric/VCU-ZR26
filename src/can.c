@@ -19,12 +19,13 @@
 amkInverter_t	amks [AMK_COUNT];
 bms_t			bms;
 ecumasterGps_t	ecumaster;
+boschF02uV01_t	boschImu;
 sib_t			steeringInputBoard;
 
 #define CAN1_NODE_COUNT (sizeof (can1Nodes) / sizeof (canNode_t*))
 canNode_t* can1Nodes [] =
 {
-	(canNode_t*) &bms, (canNode_t*) &ecumaster,
+	(canNode_t*) &bms, (canNode_t*) &ecumaster, (canNode_t*) &boschImu,
 	(canNode_t*) &amkRl, (canNode_t*) &amkRr, (canNode_t*) &amkFl, (canNode_t*) &amkFr
 };
 
@@ -115,7 +116,13 @@ static const bmsConfig_t BMS_CONFIG =
 static const ecumasterGpsConfig_t ECUMASTER_CONFIG =
 {
 	.driver			= &CAND1,
-	.timeoutPeriod	= TIME_MS2I (300),
+	.timeoutPeriod	= TIME_MS2I (300)
+};
+
+static const boschF02uV01Config_t BOSCH_IMU_CONFIG =
+{
+	.driver			= &CAND1,
+	.timeoutPeriod	= TIME_MS2I (100)
 };
 
 static const sibConfig_t SIB_CONFIG =
@@ -169,6 +176,7 @@ bool canInterfaceInit (tprio_t priority)
 		amkInit (amks + index, AMK_CONFIGS + index);
 	bmsInit (&bms, &BMS_CONFIG);
 	ecumasterInit (&ecumaster, &ECUMASTER_CONFIG);
+	boschF02uV01Init (&boschImu, &BOSCH_IMU_CONFIG);
 	sibInit (&steeringInputBoard, &SIB_CONFIG);
 
 	// Create the CAN 1 RX thread

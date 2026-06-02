@@ -183,7 +183,7 @@ msg_t transmitConfigMessage (CANDriver* driver, sysinterval_t timeout)
 		.data8	=
 		{
 			TORQUE_8_TO_WORD (drivingTorqueLimit),
-			TORQUE_8_TO_WORD (regenTorqueLimit),
+			TORQUE_8_TO_WORD (-regenTorqueLimit),
 			torqueAlgorithmIndex,
 			RATIO_TO_WORD (drivingFrontRearBias),
 			RATIO_TO_WORD (regenFrontRearBias)

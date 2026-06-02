@@ -88,6 +88,8 @@ static float getSibInputs (void)
 {
 	canNodeLock ((canNode_t*) &steeringInputBoard);
 
+	// TODO(Barach): Absolutely need CAN node validation here.
+
 	if (sibGetButtonHeld (&steeringInputBoard, SIB_TORQUE_LIMIT_INDEX))
 	{
 		// Adjust driving torque limit
@@ -100,9 +102,9 @@ static float getSibInputs (void)
 	{
 		// Adjust regen torque limit
 		if (sibGetButtonDown (&steeringInputBoard, SIB_UP_INDEX))
-			torqueThreadSetRegenTorqueLimit (regenTorqueLimit + SIB_TORQUE_STEP);
-		if (sibGetButtonDown (&steeringInputBoard, SIB_DOWN_INDEX))
 			torqueThreadSetRegenTorqueLimit (regenTorqueLimit - SIB_TORQUE_STEP);
+		if (sibGetButtonDown (&steeringInputBoard, SIB_DOWN_INDEX))
+			torqueThreadSetRegenTorqueLimit (regenTorqueLimit + SIB_TORQUE_STEP);
 	}
 	else if (sibGetButtonHeld (&steeringInputBoard, SIB_REGEN_BIAS_INDEX))
 	{

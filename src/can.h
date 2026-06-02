@@ -13,6 +13,7 @@
 // Includes
 #include "can/amk_inverter.h"
 #include "can/bms.h"
+#include "can/bosch_f_02u_v01.h"
 #include "can/ecumaster_gps_v2.h"
 #include "can/steering_input_board.h"
 
@@ -46,6 +47,9 @@ extern bms_t bms;
 
 /// @brief The ECUMaster GPS/IMU.
 extern ecumasterGps_t ecumaster;
+
+/// @brief The Bosch IMU.
+extern boschF02uV01_t boschImu;
 
 // CAN 2 Global Nodes ---------------------------------------------------------------------------------------------------------
 
