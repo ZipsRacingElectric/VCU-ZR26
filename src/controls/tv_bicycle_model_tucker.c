@@ -189,6 +189,15 @@ tvOutput_t tvBicycleModelTucker (const tvInput_t* input, const void* configPoint
 	valid &= sas.state == ANALOG_SENSOR_VALID;
 	float steeringAngle = sas.value;
 
+	// If any sensor has failed, no torque vectoring can be performed. Set all
+	// inputs to 0 to use equal left-to-right power distribution.
+	if (!valid)
+	{
+		vehicleSpeed = 0;
+		yawRateActual = 0;
+		steeringAngle = 0;
+	}
+
 	// Determine whether the vehicle is steering to the left or right. If not steering (due to the deadzone), use the last
 	// direction the vehicle was steering in.
 	bool rightHandSteering;
@@ -217,10 +226,14 @@ tvOutput_t tvBicycleModelTucker (const tvInput_t* input, const void* configPoint
 	regenLimitRearOuter   = rightHandSteering ? input->regenTorqueLimitRl   : input->regenTorqueLimitRr;
 	regenLimitFrontInner  = rightHandSteering ? input->regenTorqueLimitFr   : input->regenTorqueLimitFl;
 
+	volatile float frBias = input->drivingFrBias;
+	if (input->torqueRequest < 0)
+		frBias = input->regenFrBias;
+
 	// Calculate the rear-inner and front-outer wheel torque.
 	// - These two are not used to apply yaw moment.
-	volatile float torqueRearInner  =      input->drivingFrBias  * 0.5f * input->torqueRequest;
-	volatile float torqueFrontOuter = (1 - input->drivingFrBias) * 0.5f * input->torqueRequest;
+	volatile float torqueRearInner  =      frBias  * 0.5f * input->torqueRequest;
+	volatile float torqueFrontOuter = (1 - frBias) * 0.5f * input->torqueRequest;
 
 	// TODO(Barach): This is not correct.
 
@@ -290,7 +303,7 @@ tvOutput_t tvBicycleModelTucker (const tvInput_t* input, const void* configPoint
 	// Map the motor torques to the output based on the steering direction.
 	return (tvOutput_t)
 	{
-		.valid = valid,
+		.valid = true,
 		.torqueRl = rightHandSteering ? torqueRearOuter  : torqueRearInner,
 		.torqueRr = rightHandSteering ? torqueRearInner  : torqueRearOuter,
 		.torqueFl = rightHandSteering ? torqueFrontOuter : torqueFrontInner,
