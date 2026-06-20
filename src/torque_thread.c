@@ -42,15 +42,19 @@ float regenTorqueLimit = 0.0f;
 float drivingFrontRearBias = 0.5f;
 float regenFrontRearBias = 0.5f;
 tvOutput_t torqueRequestNonDerated;
+tvOutput_t torqueRequestPrevious;
+
+// Power limiting
+static powerLimiter_t powerLimiterRl = { 0 };
+static powerLimiter_t powerLimiterRr = { 0 };
+static powerLimiter_t powerLimiterFl = { 0 };
+static powerLimiter_t powerLimiterFr = { 0 };
 
 // Regen limiting
-static regenState_t regenRlState = { 0 };
-static regenState_t regenRrState = { 0 };
-static regenState_t regenFlState = { 0 };
-static regenState_t regenFrState = { 0 };
-
-/// @brief PID controller responsible for enforcing the global power limit.
-powerLimiter_t powerLimiter = { 0 };
+static regenLimiter_t regenLimiterRl = { 0 };
+static regenLimiter_t regenLimiterRr = { 0 };
+static regenLimiter_t regenLimiterFl = { 0 };
+static regenLimiter_t regenLimiterFr = { 0 };
 
 static tvBicycleModelTuckerState_t tvBicycleModelTuckerState =
 {
@@ -151,26 +155,37 @@ static tvInput_t requestCalculateInput (systime_t timePrevious, systime_t timeCu
 	regenRequest = regenDerateRequest (regenRequest, pedals.appsRequest);
 
 	// Calculate power limiting
-	float power = bmsGetPowerLock (&bms);
-	float limitRatio = powerLimiterCalculateTorqueLimit (&powerLimiter, power, deltaTime);
+
+	float mechanicalPowerLimitRl;
+	float mechanicalPowerLimitRr;
+	float mechanicalPowerLimitFl;
+	float mechanicalPowerLimitFr;
+	powerLimitDistribute (physicalEepromMap->powerLimit, physicalEepromMap->powerLimitEfficiency, drivingFrontRearBias,
+		&mechanicalPowerLimitRl, &mechanicalPowerLimitRr, &mechanicalPowerLimitFl, &mechanicalPowerLimitFr);
+
+	float drivingTorqueLimitRl = powerLimiterDerateLimit (&powerLimiterRl, &amkRl, mechanicalPowerLimitRl, torqueRequestPrevious.torqueRl, deltaTime);
+	float drivingTorqueLimitRr = powerLimiterDerateLimit (&powerLimiterRr, &amkRr, mechanicalPowerLimitRr, torqueRequestPrevious.torqueRr, deltaTime);
+	float drivingTorqueLimitFl = powerLimiterDerateLimit (&powerLimiterFl, &amkFl, mechanicalPowerLimitFl, torqueRequestPrevious.torqueFl, deltaTime);
+	float drivingTorqueLimitFr = powerLimiterDerateLimit (&powerLimiterFr, &amkFr, mechanicalPowerLimitFr, torqueRequestPrevious.torqueFr, deltaTime);
 
 	// Calculate regen limiting
-	float regenTorqueLimitRl = regenDerateLimit (AMK_REGENERATIVE_TORQUE_MAX, &amkRl, &regenRlState);
-	float regenTorqueLimitRr = regenDerateLimit (AMK_REGENERATIVE_TORQUE_MAX, &amkRr, &regenRrState);
-	float regenTorqueLimitFl = regenDerateLimit (AMK_REGENERATIVE_TORQUE_MAX, &amkFl, &regenFlState);
-	float regenTorqueLimitFr = regenDerateLimit (AMK_REGENERATIVE_TORQUE_MAX, &amkFr, &regenFrState);
 
-	// Torque request is the combination of the throttle request and regen request, scaled by the power limiting ratio.
-	float torqueRequest = (pedals.appsRequest * drivingTorqueLimit + regenRequest * regenTorqueLimit) * limitRatio;
+	float regenTorqueLimitRl = regenDerateLimit (&regenLimiterRl, AMK_REGENERATIVE_TORQUE_MAX, &amkRl);
+	float regenTorqueLimitRr = regenDerateLimit (&regenLimiterRr, AMK_REGENERATIVE_TORQUE_MAX, &amkRr);
+	float regenTorqueLimitFl = regenDerateLimit (&regenLimiterFl, AMK_REGENERATIVE_TORQUE_MAX, &amkFl);
+	float regenTorqueLimitFr = regenDerateLimit (&regenLimiterFr, AMK_REGENERATIVE_TORQUE_MAX, &amkFr);
+
+	// Torque request is the combination of the throttle request and regen request.
+	float torqueRequest = pedals.appsRequest * drivingTorqueLimit + regenRequest * regenTorqueLimit;
 
 	return (tvInput_t)
 	{
 		.deltaTime				= deltaTime,
 		.torqueRequest			= torqueRequest,
-		.drivingTorqueLimitRl	= AMK_DRIVING_TORQUE_MAX,
-		.drivingTorqueLimitRr	= AMK_DRIVING_TORQUE_MAX,
-		.drivingTorqueLimitFl	= AMK_DRIVING_TORQUE_MAX,
-		.drivingTorqueLimitFr	= AMK_DRIVING_TORQUE_MAX,
+		.drivingTorqueLimitRl	= drivingTorqueLimitRl,
+		.drivingTorqueLimitRr	= drivingTorqueLimitRr,
+		.drivingTorqueLimitFl	= drivingTorqueLimitFl,
+		.drivingTorqueLimitFr	= drivingTorqueLimitFr,
 		.regenTorqueLimitRl		= regenTorqueLimitRl,
 		.regenTorqueLimitRr		= regenTorqueLimitRr,
 		.regenTorqueLimitFl		= regenTorqueLimitFl,
@@ -315,6 +330,8 @@ THD_FUNCTION (torqueThread, arg)
 		bool derating = requestApplyDerating (&output, &input);
 		bool plausible = requestValidate (&output, &input);
 
+		torqueRequestPrevious = output;
+
 		bool resetRequest = physicalEepromMap->amkAutoResetRequest;
 
 		if (vehicleState == VEHICLE_STATE_READY_TO_DRIVE)
@@ -362,7 +379,7 @@ void torqueThreadStart (tprio_t priority)
 void torqueThreadSelectAlgorithm (uint8_t index)
 {
 	// Apply modulus to index (wraps around)
-	if (index < TV_ALGORITHM_COUNT)
+	if (index >= TV_ALGORITHM_COUNT)
 		index = index % TV_ALGORITHM_COUNT;
 
 	torqueAlgorithmIndex = index;
@@ -394,12 +411,29 @@ void torqueThreadSetRegenTorqueLimit (float torque)
 
 void torqueThreadUpdatePowerLimiter ()
 {
-	powerLimiterInit (&powerLimiter,
+	powerLimiterInit (&powerLimiterRl,
 		physicalEepromMap->powerLimitPidKp,
 		physicalEepromMap->powerLimitPidKi,
 		physicalEepromMap->powerLimitPidKd,
-		physicalEepromMap->powerLimitPidKa,
-		physicalEepromMap->powerLimit);
+		physicalEepromMap->powerLimitPidKa);
+
+	powerLimiterInit (&powerLimiterRr,
+		physicalEepromMap->powerLimitPidKp,
+		physicalEepromMap->powerLimitPidKi,
+		physicalEepromMap->powerLimitPidKd,
+		physicalEepromMap->powerLimitPidKa);
+
+	powerLimiterInit (&powerLimiterFl,
+		physicalEepromMap->powerLimitPidKp,
+		physicalEepromMap->powerLimitPidKi,
+		physicalEepromMap->powerLimitPidKd,
+		physicalEepromMap->powerLimitPidKa);
+
+	powerLimiterInit (&powerLimiterFr,
+		physicalEepromMap->powerLimitPidKp,
+		physicalEepromMap->powerLimitPidKi,
+		physicalEepromMap->powerLimitPidKd,
+		physicalEepromMap->powerLimitPidKa);
 }
 
 void torqueThreadSetDrivingFrBias (float bias)

@@ -14,7 +14,7 @@ float regenDerateRequest (float regenRequest, float throttleRequest)
 		physicalEepromMap->regenDeratingThrottleHigh, 0);
 }
 
-float regenDerateLimit (float motorLimit, amkInverter_t* amk, regenState_t* state)
+float regenDerateLimit (regenLimiter_t* limiter, float motorLimit, amkInverter_t* amk)
 {
 	// Get the motor speed
 	canNodeLock ((canNode_t*) amk);
@@ -30,7 +30,7 @@ float regenDerateLimit (float motorLimit, amkInverter_t* amk, regenState_t* stat
 	// elasticity and motor flux).
 	float deratingRatio = inverseLerpHysteresis (groundSpeed, physicalEepromMap->regenDeratingSpeedLow,
 		physicalEepromMap->regenDeratingSpeedHigh, physicalEepromMap->regenDeratingHysteresis,
-		&state->deratingRatioIncreasing, &state->deratingRatioPrime);
+		&limiter->deratingRatioIncreasing, &limiter->deratingRatioPrime);
 
 	// The regen limit is the motor's limit scaled by the derating ratio
 	return motorLimit * deratingRatio;

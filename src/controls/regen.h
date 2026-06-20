@@ -19,7 +19,7 @@ typedef struct
 {
 	bool deratingRatioIncreasing;
 	float deratingRatioPrime;
-} regenState_t;
+} regenLimiter_t;
 
 // Functions ------------------------------------------------------------------------------------------------------------------
 
@@ -36,12 +36,12 @@ float regenDerateRequest (float regenRequest, float throttleRequest);
  * @brief Derates the maximum amount of regen a motor may request. This is required for 2 main reasons:
  * - The vehicle cannot use regen below 5 km/h by the FSAE rules.
  * - Wheels that lock up due to regen cannot be allowed to spin in reverse.
+ * @param limiter Structure to write the function's state into. Cannot be modified by any other functions. Must be initialized
+ * to all 0's.
  * @param motorLimit The maximum amount of torque requestable of the motor, should be negative.
  * @param amk The inverter the torque is to be requested of.
- * @param state Structure to write the function's state into. Cannot be modified by any other functions. Must be initialized to
- * all 0's.
  * @return The regen limit that should be enforced. Always negative.
  */
-float regenDerateLimit (float motorLimit, amkInverter_t* amk, regenState_t* state);
+float regenDerateLimit (regenLimiter_t* limiter, float motorLimit, amkInverter_t* amk);
 
 #endif // REGEN_H

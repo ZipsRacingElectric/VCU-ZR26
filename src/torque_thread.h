@@ -39,6 +39,9 @@ extern float regenFrontRearBias;
 /// @brief The last calculated torque request, without derating. Do not modify.
 extern tvOutput_t torqueRequestNonDerated;
 
+/// @brief The last calculated torque request. Do not modify.
+extern tvOutput_t torqueRequestPrevious;
+
 // Functions ------------------------------------------------------------------------------------------------------------------
 
 /**

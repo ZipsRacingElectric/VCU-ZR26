@@ -83,7 +83,9 @@ typedef struct
 	/// @brief The moment of intertia of the vehicle, about the yaw axis, in kg*m^2.
 	float yawMomentOfInertia;
 
-	uint8_t pad1 [68];								// 0x00BC
+	float powerLimitEfficiency;						// 0x00BC
+
+	uint8_t pad1 [64];								// 0x00C0
 
 	tvBicycleModelTuckerConfig_t bicycleConfig;		// 0x0100
 } eepromMap_t;
