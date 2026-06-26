@@ -10,7 +10,11 @@ For help on how to setup this project, see the below file:
 
 ## Torque Vectoring
 
-One of the VCU's main responsibilities is implementing torque vectoring algorithms. For more details about this, see the below document:
+One of the VCU's main responsibilities is implementing torque vectoring algorithms. For details about the VCU's bicycle model torque vectoring algorithm, see the below document:
+
+[doc/bicycle_model.md](doc/bicycle_model.md)
+
+For details about torque vectoring in general, or the implementation of such algorithms, see the below document:
 
 [doc/torque_vectoring.md](doc/torque_vectoring.md)
 

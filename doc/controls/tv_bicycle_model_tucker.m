@@ -1,8 +1,8 @@
-N = 101
-M = 101
+N = 51
+M = 51
 
-x = linspace (-600, 600, N);
-y = linspace (-11, 11, M);
+x = linspace (-200, 600, N);
+y = linspace (0, 12, M);
 
 torqueRl = []
 torqueRr = []
@@ -36,7 +36,7 @@ for i = [1:N]
   yawTransferFl =  gearRatio * lr / wheelRadius * cosd (a - wheelAngle);
   yawTransferFr = -gearRatio * lr / wheelRadius * cosd (a + wheelAngle);
 
-  throttlePosition = 0.0;
+  throttlePosition = 0.7;
   torqueLimit = 84 * throttlePosition;
 
   momentIdeal = x (i);
@@ -97,7 +97,7 @@ for i = [1:N]
 
   # Current Implementation
 
-  drivingBiasFr = 0.6;
+  drivingBiasFr = 0.5;
 
   if (wheelAngle >= 0)
   #if (momentIdeal >= 0)
@@ -164,8 +164,12 @@ hold on;
 #surf (x, y (1:49),   torqueFl (1:49,:));
 #surf (x, y (51:101), torqueFr (51:101,:));
 
-surf (x, y, torqueFl);
+surf (x, y, torqueRl);
 surf (x, y, torqueFr);
+
+title ("Rear Outer / Front Inner Motor Torque Request")
+xlabel ("Yaw Moment (Nm)")
+ylabel ("Wheel Angle (deg)")
 
 #plot (x, drivingTorqueLimit * ones (N));
 #plot (x, regenTorqueLimit * ones (N));
