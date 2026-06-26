@@ -8,7 +8,9 @@ For help on how to setup this project, see the below file:
 
 [Firmware Toolchain Setup Guide (common/doc/firmware_toolchain_guide.md)](https://github.com/ZipsRacingElectric/STM32F405-Common/blob/main/doc/firmware_toolchain_guide.md)
 
-## Torque Vectoring
+## Control Systems
+
+### Torque Vectoring
 
 One of the VCU's main responsibilities is implementing torque vectoring algorithms. For details about the VCU's bicycle model torque vectoring algorithm, see the below document:
 
@@ -17,6 +19,12 @@ One of the VCU's main responsibilities is implementing torque vectoring algorith
 For details about torque vectoring in general, or the implementation of such algorithms, see the below document:
 
 [doc/torque_vectoring.md](doc/torque_vectoring.md)
+
+### Power Limiting
+
+Per the FSAE rules, the vehicle must obey an 80kW power limit. This VCU enforces this rule via a power limiter. For more details, see the below document:
+
+[doc/power_limiting.md](doc/power_limiting.md)
 
 ## Calibration
 
