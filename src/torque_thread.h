@@ -57,6 +57,16 @@ void torqueThreadStart (tprio_t priority);
 void torqueThreadSelectAlgorithm (uint8_t index);
 
 /**
+ * @brief Increments the torque algorithm index.
+ */
+void torqueThreadIncrementAlgorithm (void);
+
+/**
+ * @brief Decrements the torque algorithm index.
+ */
+void torqueThreadDecrementAlgorithm (void);
+
+/**
  * @brief Sets the cumulative driving (positive) torque limit.
  * @param torque The limit to set, in Nm.
  */

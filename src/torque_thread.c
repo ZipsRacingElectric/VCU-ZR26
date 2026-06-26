@@ -24,6 +24,7 @@
 #define TORQUE_THREAD_CAN_MESSAGE_TIMEOUT	(TORQUE_THREAD_PERIOD / 6)
 
 #define SIB_TORQUE_LIMIT_INDEX				2
+#define SIB_TV_INDEX_INDEX					3
 #define SIB_REGEN_LIMIT_INDEX				0
 #define SIB_REGEN_BIAS_INDEX				1
 
@@ -92,7 +93,11 @@ static float getSibInputs (void)
 {
 	canNodeLock ((canNode_t*) &steeringInputBoard);
 
-	// TODO(Barach): Absolutely need CAN node validation here.
+	if (steeringInputBoard.state != CAN_NODE_VALID)
+	{
+		canNodeUnlock ((canNode_t*) &steeringInputBoard);
+		return 0;
+	}
 
 	if (sibGetButtonHeld (&steeringInputBoard, SIB_TORQUE_LIMIT_INDEX))
 	{
@@ -101,6 +106,14 @@ static float getSibInputs (void)
 			torqueThreadSetDrivingTorqueLimit (drivingTorqueLimit + SIB_TORQUE_STEP);
 		if (sibGetButtonDown (&steeringInputBoard, SIB_DOWN_INDEX))
 			torqueThreadSetDrivingTorqueLimit (drivingTorqueLimit - SIB_TORQUE_STEP);
+	}
+	else if (sibGetButtonHeld (&steeringInputBoard, SIB_TV_INDEX_INDEX))
+	{
+		// Adjust torque algorithm index
+		if (sibGetButtonDown (&steeringInputBoard, SIB_UP_INDEX))
+			torqueThreadIncrementAlgorithm ();
+		if (sibGetButtonDown (&steeringInputBoard, SIB_DOWN_INDEX))
+			torqueThreadDecrementAlgorithm ();
 	}
 	else if (sibGetButtonHeld (&steeringInputBoard, SIB_REGEN_LIMIT_INDEX))
 	{
@@ -383,6 +396,22 @@ void torqueThreadSelectAlgorithm (uint8_t index)
 		index = index % TV_ALGORITHM_COUNT;
 
 	torqueAlgorithmIndex = index;
+}
+
+void torqueThreadIncrementAlgorithm (void)
+{
+	if (torqueAlgorithmIndex == TV_ALGORITHM_COUNT - 1)
+		torqueAlgorithmIndex = 0;
+	else
+		++torqueAlgorithmIndex;
+}
+
+void torqueThreadDecrementAlgorithm (void)
+{
+	if (torqueAlgorithmIndex == 0)
+		torqueAlgorithmIndex = TV_ALGORITHM_COUNT - 1;
+	else
+	 	--torqueAlgorithmIndex;
 }
 
 void torqueThreadSetDrivingTorqueLimit (float torque)
