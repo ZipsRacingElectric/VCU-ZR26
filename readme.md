@@ -8,6 +8,18 @@ For help on how to setup this project, see the below file:
 
 [Firmware Toolchain Setup Guide (common/doc/firmware_toolchain_guide.md)](https://github.com/ZipsRacingElectric/STM32F405-Common/blob/main/doc/firmware_toolchain_guide.md)
 
+## Torque Vectoring
+
+One of the VCU's main responsibilities is implementing torque vectoring algorithms. For more details about this, see the below document:
+
+[doc/torque_vectoring.md](doc/torque_vectoring.md)
+
+## Calibration
+
+In order for the VCU to work properly, it must be calibrated correctly. See the below document for details about calibration:
+
+[doc/calibration.md](doc/calibration.md)
+
 ## Directory Structure
 
 ```
