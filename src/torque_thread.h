@@ -29,6 +29,9 @@ extern float drivingTorqueLimit;
 /// @brief The cumulative amount of regenerative (negative) torque that can be distributed across all motors. Do not modify.
 extern float regenTorqueLimit;
 
+/// @brief The cumulative amount of driving (positive) torque that can be distributed accross all motors in limp mode. Do not Modify.
+extern float limpDrivingTorqueLimit;
+
 /// @brief The front-to-rear bias for distributing driving torque. Only used by certain torque vectoring algorithms. Do not
 /// modify.
 extern float drivingFrontRearBias;
@@ -71,6 +74,12 @@ void torqueThreadDecrementAlgorithm (void);
  * @param torque The limit to set, in Nm.
  */
 void torqueThreadSetDrivingTorqueLimit (float torque);
+
+/**
+ * @brief Sets the cumulative driving (positive) torque limit, in Limp Mode.
+ * @param torque The limit to set, in Nm.
+ */
+void torqueThreadSetLimpDrivingTorqueLimit (float torque);
 
 /**
  * @brief Sets the driving front-to-rear bias.

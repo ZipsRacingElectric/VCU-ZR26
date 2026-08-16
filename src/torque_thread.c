@@ -40,6 +40,7 @@
 uint8_t torqueAlgorithmIndex = 0;
 float drivingTorqueLimit = 0.0f;
 float regenTorqueLimit = 0.0f;
+float limpDrivingTorqueLimit = 0.0f;
 float drivingFrontRearBias = 0.5f;
 float regenFrontRearBias = 0.5f;
 tvOutput_t torqueRequestNonDerated;
@@ -188,8 +189,17 @@ static tvInput_t requestCalculateInput (systime_t timePrevious, systime_t timeCu
 	float regenTorqueLimitFl = regenDerateLimit (&regenLimiterFl, AMK_REGENERATIVE_TORQUE_MAX, &amkFl);
 	float regenTorqueLimitFr = regenDerateLimit (&regenLimiterFr, AMK_REGENERATIVE_TORQUE_MAX, &amkFr);
 
+	// If car is in limp mode use limpDrivingTorqueLimit
+
+	float activeDrivingTorqueLimit = drivingTorqueLimit;
+	
+	if (bms.limpMode)
+	{
+		activeDrivingTorqueLimit = limpDrivingTorqueLimit;
+	} 
+
 	// Torque request is the combination of the throttle request and regen request.
-	float torqueRequest = pedals.appsRequest * drivingTorqueLimit + regenRequest * regenTorqueLimit;
+	float torqueRequest = pedals.appsRequest * activeDrivingTorqueLimit + regenRequest * regenTorqueLimit;
 
 	return (tvInput_t)
 	{
@@ -436,6 +446,17 @@ void torqueThreadSetRegenTorqueLimit (float torque)
 		regenTorqueLimit = AMK_REGENERATIVE_TORQUE_MAX * AMK_COUNT;
 
 	regenTorqueLimit = torque;
+}
+
+void torqueThreadSetLimpDrivingTorqueLimit (float torque)
+{
+	// Clamp to min/max
+	if (torque > AMK_DRIVING_TORQUE_MAX * AMK_COUNT)
+		torque = AMK_DRIVING_TORQUE_MAX * AMK_COUNT;
+	if (torque < 0)
+		torque = 0;
+
+	limpDrivingTorqueLimit = torque;
 }
 
 void torqueThreadUpdatePowerLimiter ()
