@@ -193,7 +193,7 @@ static tvInput_t requestCalculateInput (systime_t timePrevious, systime_t timeCu
 
 	float activeDrivingTorqueLimit = drivingTorqueLimit;
 	
-	if (bms.limpMode)
+	if (bms.limpModeState != LIMP_MODE_OFF)
 	{
 		activeDrivingTorqueLimit = limpDrivingTorqueLimit;
 	} 
