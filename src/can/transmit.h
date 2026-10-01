@@ -9,6 +9,7 @@
 // Description: Functions for transmitting CAN messages that aren't directed towards a specific CAN node.
 
 // Includes -------------------------------------------------------------------------------------------------------------------
+#include "controls/traction.h"
 
 // ChibiOS
 #include "hal.h"
@@ -65,5 +66,14 @@ msg_t transmitNonderatedTorqueMessage (CANDriver* driver, sysinterval_t timeout)
  * @return The result of the CAN operation.
  */
 msg_t transmitYawRateMessage (CANDriver* driver, float yawRateActual, float yawRateIdeal, float targetYawMoment, sysinterval_t timeout);
+
+/**
+ * @brief Transmits the message realating to traction of the car.
+ * @param driver The CAN driver to use.
+ * @param wheelGroundSpeed The ground speed of the wheels, not accounting for tire slip.
+ * @param timeout The interval to timemout after.
+ * @return The result of the CAN operation.
+ */
+msg_t transmitTractionMessage (CANDriver* driver, const tractionState_t* state, sysinterval_t timeout);
 
 #endif // TRANSMIT_H

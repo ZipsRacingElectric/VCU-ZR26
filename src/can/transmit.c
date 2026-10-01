@@ -44,6 +44,10 @@
 #define MOMENT_INVERSE_FACTOR		(1 / 0.1f)
 #define MOMENT_TO_WORD(moment)		(int16_t) ((moment) * MOMENT_INVERSE_FACTOR)
 
+// Wheel Ground Speed Values (km/h)
+#define WGS_INVERSE_FACTOR				(1 / 0.1f) 
+#define WGS_TO_WORD(wheelGroundSpeed)	(uint16_t) ((wheelGroundSpeed) * WGS_INVERSE_FACTOR)
+
 // Message IDs ----------------------------------------------------------------------------------------------------------------
 
 #define STATUS_MESSAGE_ID				0x100
@@ -53,6 +57,7 @@
 #define CONFIG_MESSAGE_ID				0x7A2
 #define NONDERATED_TORQUE_MESSAGE_ID	0x210
 #define YAW_MESSAGE_ID					0x211
+#define TRACTION_MESSAGE_ID				0x212
 
 // Message Packing ------------------------------------------------------------------------------------------------------------
 
@@ -232,4 +237,19 @@ msg_t transmitYawRateMessage (CANDriver* driver, float yawRateActual, float yawR
 	};
 
 	return canTransmitTimeout (driver, CAN_ANY_MAILBOX, &frame, timeout);
+}
+
+msg_t transmitTractionMessage(CANDriver* driver, const tractionState_t* state, sysinterval_t timeout)
+{
+	CANTxFrame frame = 
+	{
+		.DLC = 8,
+		.IDE = CAN_IDE_STD,
+		.SID = TRACTION_MESSAGE_ID,	
+	};
+
+	for (uint8_t wheel = 0; wheel < AMK_COUNT; wheel++)
+		frame.data16[wheel] = WGS_TO_WORD(state->wheelGroundSpeed[wheel]);
+
+	return canTransmitTimeout(driver, CAN_ANY_MAILBOX, &frame, timeout);
 }

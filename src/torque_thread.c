@@ -10,6 +10,7 @@
 #include "controls/tv_const_bias.h"
 #include "controls/tv_linear_bias.h"
 #include "controls/tv_bicycle_model_tucker.h"
+#include "controls/traction.h"
 #include "peripherals.h"
 #include "state_thread.h"
 
@@ -45,6 +46,7 @@ float drivingFrontRearBias = 0.5f;
 float regenFrontRearBias = 0.5f;
 tvOutput_t torqueRequestNonDerated;
 tvOutput_t torqueRequestPrevious;
+static tractionState_t tractionState = { 0 };
 
 // Power limiting
 static powerLimiter_t powerLimiterRl = { 0 };
@@ -342,6 +344,9 @@ THD_FUNCTION (torqueThread, arg)
 		chThdSleepUntilWindowed (timeCurrent, timeNext);
 		timeCurrent = chVTGetSystemTimeX ();
 
+		// Calculate wheel ground speed.
+		tractionStateUpdate(&tractionState);
+
 		// Calculate the torque vectoring input then execute the algorithm.
 		tvInput_t input = requestCalculateInput (timePrevious, timeCurrent);
 		tvOutput_t output = requestCalculateOutput (&input);
@@ -390,6 +395,9 @@ THD_FUNCTION (torqueThread, arg)
 
 		// Transmit the non-derated torque message (for data logging).
 		transmitNonderatedTorqueMessage (&CAND1, TORQUE_THREAD_CAN_MESSAGE_TIMEOUT);
+
+		// Transmit wheel ground speeds.
+		transmitTractionMessage(&CAND1, &tractionState, TORQUE_THREAD_CAN_MESSAGE_TIMEOUT); 
 	}
 }
 
