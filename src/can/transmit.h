@@ -68,12 +68,30 @@ msg_t transmitNonderatedTorqueMessage (CANDriver* driver, sysinterval_t timeout)
 msg_t transmitYawRateMessage (CANDriver* driver, float yawRateActual, float yawRateIdeal, float targetYawMoment, sysinterval_t timeout);
 
 /**
- * @brief Transmits the message realating to traction of the car.
+ * @brief Transmits the message containing calcualted wheel ground speeds.
  * @param driver The CAN driver to use.
  * @param wheelGroundSpeed The ground speed of the wheels, not accounting for tire slip.
  * @param timeout The interval to timemout after.
  * @return The result of the CAN operation.
  */
-msg_t transmitTractionMessage (CANDriver* driver, const tractionState_t* state, sysinterval_t timeout);
+msg_t transmitWheelGroundSpeedMessage (CANDriver* driver, const tractionState_t* state, sysinterval_t timeout);
+
+/**
+ * @brief Transmits the message containing tire slip of the wheels.
+ * @param driver The CAN driver to use.
+ * @param tireSlip The calculated tire slip of each wheel.
+ * @param timeout The interval to timeout after.
+ * @return The result of the CAN operation.
+ */
+msg_t transmitTireSlipMessage (CANDriver* driver, const tractionState_t* state, sysinterval_t timeout);
+
+/**
+ * @brief Transmits the speed calculated using IMU integration, speed used to cacluate tire slip.
+ * @param driver The CAN driver to use.
+ * @param tireSlip The calculated tire slip of each wheel.
+ * @param timeout The interval to timeout after.
+ * @return The result of the CAN operation.
+ */
+msg_t transmitTractionSpeed (CANDriver* driver, const tractionState_t* state, sysinterval_t timmeout);
 
 #endif // TRANSMIT_H

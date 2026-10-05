@@ -21,8 +21,11 @@
 
 #define TORQUE_LIMIT_TOLERANCE				0.01f
 
-#define TORQUE_THREAD_PERIOD				TIME_MS2I (10)
-#define TORQUE_THREAD_CAN_MESSAGE_TIMEOUT	(TORQUE_THREAD_PERIOD / 6)
+#define TORQUE_THREAD_PERIOD_MS 			10U
+#define TORQUE_THREAD_PERIOD				TIME_MS2I (TORQUE_THREAD_PERIOD_MS)
+#define TORQUE_THREAD_PERIOD_SECONDS		((float) TORQUE_THREAD_PERIOD_MS / 1000.0f)
+
+#define TORQUE_THREAD_CAN_MESSAGE_TIMEOUT	(TORQUE_THREAD_PERIOD / 6)		
 
 #define SIB_TORQUE_LIMIT_INDEX				2
 #define SIB_TV_INDEX_INDEX					3
@@ -344,8 +347,8 @@ THD_FUNCTION (torqueThread, arg)
 		chThdSleepUntilWindowed (timeCurrent, timeNext);
 		timeCurrent = chVTGetSystemTimeX ();
 
-		// Calculate wheel ground speed.
-		tractionStateUpdate(&tractionState);
+		// Calculate values realted to tire slip
+		tractionStateUpdate(&tractionState, TORQUE_THREAD_PERIOD_SECONDS);
 
 		// Calculate the torque vectoring input then execute the algorithm.
 		tvInput_t input = requestCalculateInput (timePrevious, timeCurrent);
@@ -397,7 +400,13 @@ THD_FUNCTION (torqueThread, arg)
 		transmitNonderatedTorqueMessage (&CAND1, TORQUE_THREAD_CAN_MESSAGE_TIMEOUT);
 
 		// Transmit wheel ground speeds.
-		transmitTractionMessage(&CAND1, &tractionState, TORQUE_THREAD_CAN_MESSAGE_TIMEOUT); 
+		transmitWheelGroundSpeedMessage(&CAND1, &tractionState, TORQUE_THREAD_CAN_MESSAGE_TIMEOUT); 
+
+		// Transmit all wheels' tire slip.
+		transmitTireSlipMessage(&CAND1, &tractionState, TORQUE_THREAD_CAN_MESSAGE_TIMEOUT);
+
+		// Transmit IMU estimated speed.
+		transmitTractionSpeed(&CAND1, &tractionState, TORQUE_THREAD_CAN_MESSAGE_TIMEOUT);
 	}
 }
 

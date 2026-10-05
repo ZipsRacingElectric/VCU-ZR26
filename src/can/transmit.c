@@ -45,8 +45,16 @@
 #define MOMENT_TO_WORD(moment)		(int16_t) ((moment) * MOMENT_INVERSE_FACTOR)
 
 // Wheel Ground Speed Values (km/h)
-#define WGS_INVERSE_FACTOR				(1 / 0.1f) 
+#define WGS_INVERSE_FACTOR				(1 / 0.01f) 
 #define WGS_TO_WORD(wheelGroundSpeed)	(uint16_t) ((wheelGroundSpeed) * WGS_INVERSE_FACTOR)
+
+// Tire Slip Values
+#define TIRE_SLIP_INVERSE_FACTOR 		(1 / 0.001f)
+#define TIRE_SLIP_TO_WORD(tireSlip)		(int16_t) ((tireSlip) * TIRE_SLIP_INVERSE_FACTOR)
+
+// Traction Speed Values
+#define TRACTION_SPEED_INVERESE_FACTOR			(1 / 0.01f)
+#define TRACTION_SPEED_TO_WORD(tractionSpeed)	(uint16_t) ((tractionSpeed) * TRACTION_SPEED_INVERESE_FACTOR) 
 
 // Message IDs ----------------------------------------------------------------------------------------------------------------
 
@@ -57,7 +65,9 @@
 #define CONFIG_MESSAGE_ID				0x7A2
 #define NONDERATED_TORQUE_MESSAGE_ID	0x210
 #define YAW_MESSAGE_ID					0x211
-#define TRACTION_MESSAGE_ID				0x212
+#define WHEEL_GROUND_SPEED_MESSAGE_ID	0x212
+#define TIRE_SLIP_MESSAGE_ID			0x213
+#define TRACTION_SPEED_MESSAGE_ID		0x214
 
 // Message Packing ------------------------------------------------------------------------------------------------------------
 
@@ -239,17 +249,56 @@ msg_t transmitYawRateMessage (CANDriver* driver, float yawRateActual, float yawR
 	return canTransmitTimeout (driver, CAN_ANY_MAILBOX, &frame, timeout);
 }
 
-msg_t transmitTractionMessage(CANDriver* driver, const tractionState_t* state, sysinterval_t timeout)
+msg_t transmitWheelGroundSpeedMessage(CANDriver* driver, const tractionState_t* state, sysinterval_t timeout)
 {
 	CANTxFrame frame = 
 	{
 		.DLC = 8,
 		.IDE = CAN_IDE_STD,
-		.SID = TRACTION_MESSAGE_ID,	
+		.SID = WHEEL_GROUND_SPEED_MESSAGE_ID,	
 	};
 
 	for (uint8_t wheel = 0; wheel < AMK_COUNT; wheel++)
 		frame.data16[wheel] = WGS_TO_WORD(state->wheelGroundSpeed[wheel]);
+
+	return canTransmitTimeout(driver, CAN_ANY_MAILBOX, &frame, timeout);
+}
+
+msg_t transmitTireSlipMessage(CANDriver* driver, const tractionState_t* state, sysinterval_t timeout)
+{
+	CANTxFrame frame =
+	{
+		.DLC = 8,
+		.IDE = CAN_IDE_STD,
+		.SID = TIRE_SLIP_MESSAGE_ID
+	};
+
+	for (uint8_t wheel = 0; wheel < AMK_COUNT; wheel++)
+	{	
+		float slip = state->tireSlip[wheel];
+		if (slip > 32.767f)
+            slip = 32.767f;
+		else if (slip < -32.768f)
+            slip = -32.768f;
+		frame.data16[wheel] = TIRE_SLIP_TO_WORD(slip);
+	}
+	return canTransmitTimeout(driver, CAN_ANY_MAILBOX, &frame, timeout);
+}
+
+msg_t transmitTractionSpeed(CANDriver* driver, const tractionState_t* state, sysinterval_t timeout)
+{
+	CANTxFrame frame =
+	{
+		.DLC = 3,
+		.IDE = CAN_IDE_STD,
+		.SID = TRACTION_SPEED_MESSAGE_ID,
+	};
+
+	frame.data16[0] =
+    TRACTION_SPEED_TO_WORD(state->integratedVehicleSpeed * 3.6f);
+
+	frame.data8[2] =
+    (uint8_t)state->vehicleSpeedSource;
 
 	return canTransmitTimeout(driver, CAN_ANY_MAILBOX, &frame, timeout);
 }
