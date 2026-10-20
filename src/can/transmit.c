@@ -56,6 +56,9 @@
 #define TRACTION_SPEED_INVERESE_FACTOR			(1 / 0.01f)
 #define TRACTION_SPEED_TO_WORD(tractionSpeed)	(uint16_t) ((tractionSpeed) * TRACTION_SPEED_INVERESE_FACTOR) 
 
+#define IMU_BIAS_INVERSE_FACTOR			(1 / 0.0001f)
+#define IMU_BIAS_TO_WORD(bias)			(int16_t) ((bias) * IMU_BIAS_INVERSE_FACTOR)
+
 // Message IDs ----------------------------------------------------------------------------------------------------------------
 
 #define STATUS_MESSAGE_ID				0x100
@@ -288,17 +291,25 @@ msg_t transmitTireSlipMessage(CANDriver* driver, const tractionState_t* state, s
 msg_t transmitTractionSpeed(CANDriver* driver, const tractionState_t* state, sysinterval_t timeout)
 {
 	CANTxFrame frame =
-	{
-		.DLC = 3,
-		.IDE = CAN_IDE_STD,
-		.SID = TRACTION_SPEED_MESSAGE_ID,
-	};
+    {
+        .DLC = 5,
+        .IDE = CAN_IDE_STD,
+        .SID = TRACTION_SPEED_MESSAGE_ID,
+    };
 
-	frame.data16[0] =
-    TRACTION_SPEED_TO_WORD(state->integratedVehicleSpeed * 3.6f);
+    // Bytes 0-1: Integrated IMU vehicle speed, km/h
+    frame.data16[0] =
+        TRACTION_SPEED_TO_WORD(
+            state->integratedVehicleSpeed * 3.6f);
 
-	frame.data8[2] =
-    (uint8_t)state->vehicleSpeedSource;
+    // Bytes 2-3: Learned IMU acceleration bias, g
+    frame.data16[1] =
+        IMU_BIAS_TO_WORD(
+            state->imuAccelerationBias);
+
+    // Byte 4: Selected vehicle speed source
+    frame.data8[4] =
+        (uint8_t)state->vehicleSpeedSource;
 
 	return canTransmitTimeout(driver, CAN_ANY_MAILBOX, &frame, timeout);
 }

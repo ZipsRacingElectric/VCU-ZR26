@@ -20,7 +20,7 @@
 // Constants ------------------------------------------------------------------------------------------------------------------
 
 /// @brief The magic string of the EEPROM. Update this value every time the memory map changes to force manual re-programming.
-#define EEPROM_MAP_STRING "VCU_2026_08_16"
+#define EEPROM_MAP_STRING "VCU_2026_10_14"
 
 // Datatypes ------------------------------------------------------------------------------------------------------------------
 
@@ -90,6 +90,16 @@ typedef struct
 	tvBicycleModelTuckerConfig_t bicycleConfig;		// 0x0100
 
 	float limpDrivingTorqueLimit;					// 0x0110
+
+	// One pedal regen
+	float appsCoastThreshold;						// 0x0114
+	float appsRegenThreshold;						// 0x0118
+	float onePedalRegenRequest;						// 0x011C
+	float regenApplicationTime;						// 0x0120
+	float regenReleaseTime;							// 0x0124
+
+
+
 } eepromMap_t;
 
 // Functions ------------------------------------------------------------------------------------------------------------------

@@ -32,6 +32,9 @@ typedef struct
     ///@brief Vehicle speed estimated from integrating IMU accelertion.
     float integratedVehicleSpeed;
 
+    ///@brief Learned stationary x-axis IMU bias in g.
+    float imuAccelerationBias;
+
     /// @brief Vehicle speed estimated from GPS.
     float gpsVehicleSpeed;
 

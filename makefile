@@ -56,6 +56,7 @@ include common/src/can/steering_input_board.mk
 
 include common/src/controls/pid_controller.mk
 include common/src/controls/vehicle_dynamics.mk
+include common/src/controls/slew_filter.mk
 
 # Compiler flags
 USE_OPT = -Og -Wall -Wextra -lm

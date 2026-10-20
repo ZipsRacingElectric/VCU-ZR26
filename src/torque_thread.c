@@ -11,6 +11,7 @@
 #include "controls/tv_linear_bias.h"
 #include "controls/tv_bicycle_model_tucker.h"
 #include "controls/traction.h"
+#include "controls/slew_filter.h"
 #include "peripherals.h"
 #include "state_thread.h"
 
@@ -62,6 +63,9 @@ static regenLimiter_t regenLimiterRl = { 0 };
 static regenLimiter_t regenLimiterRr = { 0 };
 static regenLimiter_t regenLimiterFl = { 0 };
 static regenLimiter_t regenLimiterFr = { 0 };
+
+// Torque limiting 
+static float regenRequestSlewed = 0.0f;
 
 static tvBicycleModelTuckerState_t tvBicycleModelTuckerState =
 {
@@ -124,10 +128,21 @@ static float getSibInputs (void)
 	else if (sibGetButtonHeld (&steeringInputBoard, SIB_REGEN_LIMIT_INDEX))
 	{
 		// Adjust regen torque limit
+
+		// Increase regenerative torque 
 		if (sibGetButtonDown (&steeringInputBoard, SIB_UP_INDEX))
 			torqueThreadSetRegenTorqueLimit (regenTorqueLimit - SIB_TORQUE_STEP);
+
+		// Drecrease regenerative torque
 		if (sibGetButtonDown (&steeringInputBoard, SIB_DOWN_INDEX))
+		{
+			float newRegenTorqueLimit = regenTorqueLimit + SIB_TORQUE_STEP;
+			// Do not let regenerative torque cross zero into negative
+			if (newRegenTorqueLimit > 0.0f)	
+				newRegenTorqueLimit = 0.0f;
+
 			torqueThreadSetRegenTorqueLimit (regenTorqueLimit + SIB_TORQUE_STEP);
+		}
 	}
 	else if (sibGetButtonHeld (&steeringInputBoard, SIB_REGEN_BIAS_INDEX))
 	{
@@ -146,7 +161,7 @@ static float getSibInputs (void)
 			torqueThreadSetDrivingFrBias (drivingFrontRearBias + SIB_BIAS_STEP);
 	}
 
-	// Regen input (max of the 2 paddles)
+	// Regen input (max of the 2 paddles) 
 	float paddleInput0 = sibGetAnalogValue (&steeringInputBoard, 0);
 	float paddleInput1 = sibGetAnalogValue (&steeringInputBoard, 1);
 
@@ -168,10 +183,9 @@ static tvInput_t requestCalculateInput (systime_t timePrevious, systime_t timeCu
 
 	// Sample the sensor inputs and get the regen input.
 	peripheralsSample (timePrevious, timeCurrent);
-	float regenRequest = getSibInputs ();
 
-	// Derate the regen request based on throttle position (no regen when throttle is depressed)
-	regenRequest = regenDerateRequest (regenRequest, pedals.appsRequest);
+	// Get button inputs from steering wheel
+	(void) getSibInputs();
 
 	// Calculate power limiting
 
@@ -198,14 +212,80 @@ static tvInput_t requestCalculateInput (systime_t timePrevious, systime_t timeCu
 
 	float activeDrivingTorqueLimit = drivingTorqueLimit;
 	
-	if (bms.limpModeState != LIMP_MODE_OFF)
+		if (bms.limpModeState != LIMP_MODE_OFF)
+			activeDrivingTorqueLimit = limpDrivingTorqueLimit;
+
+	// One-pedal regen
+	float regenThreshold = physicalEepromMap->appsRegenThreshold * 0.01f;
+	float coastThreshold = physicalEepromMap->appsCoastThreshold * 0.01f;
+
+	float maxRegenRequest = physicalEepromMap->onePedalRegenRequest;
+
+	float driveRequest = 0.0f;
+	float regenRequestTarget = 0.0f;
+
+	// Determine driver request ---------------------------------------------------------------------------------------------------
+	if (pedals.appsRequest <= regenThreshold)
 	{
-		activeDrivingTorqueLimit = limpDrivingTorqueLimit;
-	} 
+	    // Driver has released APPS.
+	    regenRequestTarget = maxRegenRequest;
+	}
+	else if (pedals.appsRequest <= coastThreshold)
+	{
+	    // Coast region.
+	    // Both driveRequest and regenRequestTarget remain zero.
+	}
+	else
+	{
+	    // Normal driving region.
+		// Scale pedal travel to 0-100% offset by coast region
+	    driveRequest = (pedals.appsRequest - coastThreshold) / (1.0f - coastThreshold);
+	}
 
-	// Torque request is the combination of the throttle request and regen request.
-	float torqueRequest = pedals.appsRequest * activeDrivingTorqueLimit + regenRequest * regenTorqueLimit;
+	// Convert EEPROM ramp times into normalized request/second 
+	float applicationRate;
 
+	if (physicalEepromMap->regenApplicationTime > 0.0f)
+	{
+	    applicationRate = maxRegenRequest /physicalEepromMap->regenApplicationTime;
+	}
+	else
+	{
+	    applicationRate = FLT_MAX;
+	}
+
+	float releaseRate;
+
+	if (physicalEepromMap->regenReleaseTime > 0.0f)
+	{
+	    releaseRate = maxRegenRequest / physicalEepromMap->regenReleaseTime;
+	}
+	else
+	{
+	    releaseRate = FLT_MAX;
+	}
+
+	// Slew normalized regen request 
+	regenRequestSlewed = slewRateLimit(regenRequestTarget, regenRequestSlewed, applicationRate, releaseRate, deltaTime);
+
+	// Convert normalized requests into torque 
+	float torqueRequest;
+
+	// regenTorqueLimit == 0 means regen is disabled by the driver.
+	bool regenEnabled =
+	    regenTorqueLimit < -TORQUE_LIMIT_TOLERANCE;
+
+	if (regenEnabled && regenRequestSlewed > 0.0f)
+	{
+	    torqueRequest =
+	        regenRequestSlewed * regenTorqueLimit;
+	}
+	else
+	{
+	    torqueRequest =
+	        driveRequest * activeDrivingTorqueLimit;
+	}
+	
 	return (tvInput_t)
 	{
 		.deltaTime				= deltaTime,
@@ -386,6 +466,8 @@ THD_FUNCTION (torqueThread, arg)
 		}
 		else
 		{
+			regenRequestSlewed = 0.0f;
+
 			// De-energization message.
 			amkSendEnergizationRequest (&amkRl, false, resetRequest, TORQUE_THREAD_CAN_MESSAGE_TIMEOUT);
 			amkSendEnergizationRequest (&amkRr, false, resetRequest, TORQUE_THREAD_CAN_MESSAGE_TIMEOUT);
@@ -460,7 +542,7 @@ void torqueThreadSetRegenTorqueLimit (float torque)
 
 	// Clamp to the max magnitude
 	if (torque < AMK_REGENERATIVE_TORQUE_MAX * AMK_COUNT)
-		regenTorqueLimit = AMK_REGENERATIVE_TORQUE_MAX * AMK_COUNT;
+		torque = AMK_REGENERATIVE_TORQUE_MAX * AMK_COUNT;
 
 	regenTorqueLimit = torque;
 }
