@@ -141,7 +141,7 @@ static float getSibInputs (void)
 			if (newRegenTorqueLimit > 0.0f)	
 				newRegenTorqueLimit = 0.0f;
 
-			torqueThreadSetRegenTorqueLimit (regenTorqueLimit + SIB_TORQUE_STEP);
+			torqueThreadSetRegenTorqueLimit (newRegenTorqueLimit);
 		}
 	}
 	else if (sibGetButtonHeld (&steeringInputBoard, SIB_REGEN_BIAS_INDEX))
